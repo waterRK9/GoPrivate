@@ -6,7 +6,7 @@ import (
 )
 
 func getDummyEncryptionScheme() EncryptionScheme {
-	applyInt := func(v any) (any, error) {
+	encryptInt := func(v any) (any, error) {
 		_v, translated := v.(int64)
 		if !translated {
 			return nil, errors.New("Input is wrong type; should be int64")
@@ -14,7 +14,15 @@ func getDummyEncryptionScheme() EncryptionScheme {
 		return (_v + 1), nil
 	}
 
-	applyString := func(v any) (any, error) {
+	decryptInt := func(v any) (any, error) {
+		_v, translated := v.(int64)
+		if !translated {
+			return nil, errors.New("Input is wrong type; should be int64")
+		}
+		return (_v - 1), nil
+	}
+
+	encryptString := func(v any) (any, error) {
 		_v, translated := v.(string)
 		if !translated {
 			return nil, errors.New("Input is wrong type; should be string")
@@ -22,22 +30,39 @@ func getDummyEncryptionScheme() EncryptionScheme {
 		return (_v + "abc"), nil
 	}
 
+	decryptString := func(v any) (any, error) {
+		_v, translated := v.(string)
+		if !translated {
+			return nil, errors.New("Input is wrong type; should be string")
+		}
+		return _v[:len(_v)-3], nil
+	}
+
 	encryptMethods := make(map[string]func(v any) (any, error))
-	encryptMethods["age"] = applyInt
-	encryptMethods["name"] = applyString
+	encryptMethods["age"] = encryptInt
+	encryptMethods["name"] = encryptString
+
+	decryptMethods := make(map[string]func(v any) (any, error))
+	decryptMethods["age"] = decryptInt
+	decryptMethods["name"] = decryptString
 
 	defaultEncrypt := func(v any) (any, error) {
 		return v, nil
 	}
 
-	return EncryptionScheme{EncryptMethods: encryptMethods, DefaultEncrypt: defaultEncrypt}
+	return EncryptionScheme{
+		EncryptMethods: encryptMethods,
+		DefaultEncrypt: defaultEncrypt,
+		DecryptMethods: decryptMethods,
+		DefaultDecrypt: defaultEncrypt,
+	}
 }
 
 func TestTupleEncryption(t *testing.T) {
 	_, t1, _, _, _, _ := makeTestVars()
 
 	e := getDummyEncryptionScheme()
-	encryptedT1, err := e.encryptTuple(&t1)
+	encryptedT1, err := e.encryptOrDecryptTuple(&t1, true)
 
 	if err != nil {
 		t.Fatalf(err.Error())
