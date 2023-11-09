@@ -310,12 +310,19 @@ func (t *Tuple) project(fields []FieldType) (*Tuple, error) {
 	var projectedFields []FieldType
 	var projectedFieldsValues []DBValue
 	for _, field := range fields {
+		var fieldToAppend FieldType
+		var valueToAppend DBValue
 		for i := 0; i < len(t.Desc.Fields); i++ {
 			if t.Desc.Fields[i].Fname == field.Fname && t.Desc.Fields[i].Ftype == field.Ftype {
-				projectedFields = append(projectedFields, t.Desc.Fields[i])
-				projectedFieldsValues = append(projectedFieldsValues, t.Fields[i])
+				fieldToAppend = t.Desc.Fields[i]
+				valueToAppend = t.Fields[i]
+				if t.Desc.Fields[i].TableQualifier == field.TableQualifier {
+					break
+				}
 			}
 		}
+		projectedFields = append(projectedFields, fieldToAppend)
+		projectedFieldsValues = append(projectedFieldsValues, valueToAppend)
 	}
 	return &Tuple{Desc: TupleDesc{Fields: projectedFields}, Fields: projectedFieldsValues}, nil //replace me
 }
