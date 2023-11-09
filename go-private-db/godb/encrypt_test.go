@@ -50,3 +50,28 @@ func TestTupleEncryption(t *testing.T) {
 		t.Errorf("Encrypted int is incorrect")
 	}
 }
+
+func TestHeapFileEncryption(t *testing.T) {
+	_, t1, t2, hf, _, tid := makeTestVars()
+	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t2, tid)
+
+	e := getDummyEncryptionScheme()
+	encryptedHf, err := e.encrypt(hf, tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	iter, _ := encryptedHf.Iterator(tid)
+	i := 0
+	for {
+		t, _ := iter()
+		if t == nil {
+			break
+		}
+		i = i + 1
+	}
+	if i != 2 {
+		t.Errorf("Encrypted HeapFile iterator expected 2 tuples, got %d", i)
+	}
+}

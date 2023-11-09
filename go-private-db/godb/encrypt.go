@@ -33,6 +33,26 @@ func (e *EncryptionScheme) encryptTuple(t *Tuple) (*Tuple, error) {
 	return &Tuple{Desc: t.Desc, Fields: fields}, nil
 }
 
-// func (e *EncryptionScheme) encrypt(hf *HeapFile) (*HeapFile, error) {
+func (e *EncryptionScheme) encrypt(hf *HeapFile, tid TransactionID) (*HeapFile, error) {
+	fileName := "encrypted_" + hf.file
+	bp := NewBufferPool(3)
+	encryptedHf, err := NewHeapFile(fileName, hf.desc, bp)
+	if err != nil {
+		return nil, err
+	}
 
-// }
+	iter, _ := hf.Iterator(tid)
+	for {
+		t, _ := iter()
+		if t == nil {
+			break
+		}
+		encryptedTuple, err := e.encryptTuple(t)
+		if err != nil {
+			return nil, err
+		}
+		encryptedHf.insertTuple(encryptedTuple, tid)
+	}
+
+	return encryptedHf, nil
+}
