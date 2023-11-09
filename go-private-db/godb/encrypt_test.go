@@ -2,6 +2,7 @@ package godb
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 )
 
@@ -139,5 +140,165 @@ func TestHeapFileDecryption(t *testing.T) {
 	}
 	if i != 2 {
 		t.Errorf("Encrypted HeapFile iterator expected 2 tuples, got %d", i)
+	}
+}
+
+func TestDetEncryptionInt64(t *testing.T) {
+	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	encryptFunc := newDetEncryptionFunc(key)
+
+	var v1 int64
+	var v2 int64
+
+	v1 = 125
+	v2 = 125
+	e1, _ := encryptFunc(v1)
+	e2, _ := encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+
+	v1 = 0
+	v2 = 0
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+
+	v1 = 1234567890
+	v2 = 1234567890
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+}
+
+func TestDetDecryptionInt64(t *testing.T) {
+	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	encryptFunc := newDetEncryptionFunc(key)
+	decryptFunc := newDetDecryptionFunc(key)
+
+	var v1 int64
+	var v2 int64
+
+	v1 = 125
+	v2 = 125
+	e1, _ := encryptFunc(v1)
+	e2, _ := encryptFunc(v2)
+	d1, _ := decryptFunc(e1.(string))
+	d2, _ := decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+
+	v1 = 0
+	v2 = 0
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	d1, _ = decryptFunc(e1.(string))
+	d2, _ = decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+
+	v1 = 1234567890
+	v2 = 1234567890
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	d1, _ = decryptFunc(e1.(string))
+	d2, _ = decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+}
+
+func TestDetEncryptionString(t *testing.T) {
+	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	encryptFunc := newDetEncryptionFunc(key)
+
+	var v1 string
+	var v2 string
+
+	v1 = ""
+	v2 = ""
+	e1, _ := encryptFunc(v1)
+	e2, _ := encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+
+	v1 = "aBc"
+	v2 = "aBc"
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+
+	v1 = "aBc123"
+	v2 = "aBc123"
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	if e1 != e2 {
+		t.Errorf("Expected equal values! got %v != %v", e1, e2)
+	}
+}
+
+func TestDetDecryptionString(t *testing.T) {
+	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	encryptFunc := newDetEncryptionFunc(key)
+	decryptFunc := newDetDecryptionFunc(key)
+
+	var v1 string
+	var v2 string
+
+	v1 = ""
+	v2 = ""
+	e1, _ := encryptFunc(v1)
+	e2, _ := encryptFunc(v2)
+	d1, _ := decryptFunc(e1.(string))
+	d2, _ := decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+
+	v1 = "aBc"
+	v2 = "aBc"
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	d1, _ = decryptFunc(e1.(string))
+	d2, _ = decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+
+	v1 = "aBc123"
+	v2 = "aBc123"
+	e1, _ = encryptFunc(v1)
+	e2, _ = encryptFunc(v2)
+	d1, _ = decryptFunc(e1.(string))
+	d2, _ = decryptFunc(e2.(string))
+	if fmt.Sprint(v1) != d1 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
+	}
+	if fmt.Sprint(v2) != d2 {
+		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
 }

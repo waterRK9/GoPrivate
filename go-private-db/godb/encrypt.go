@@ -1,5 +1,11 @@
 package godb
 
+import (
+	"strconv"
+
+	"github.com/tink-crypto/tink-go/daead/subtle"
+)
+
 type EncryptionScheme struct {
 	EncryptMethods map[string](func(v any) (any, error))
 	DefaultEncrypt func(v any) (any, error)
@@ -68,4 +74,62 @@ func (e *EncryptionScheme) encryptOrDecrypt(hf *HeapFile, toFile string, encrypt
 	}
 
 	return _hf, nil
+}
+
+func newDetEncryptionFunc(key []byte) func(v any) (any, error) {
+	aessiv, err := subtle.NewAESSIV(key)
+	if err != nil {
+		panic(err)
+	}
+	aad := []byte("")
+
+	return func(v any) (any, error) {
+		if intValue, ok := v.(int64); ok {
+			buf := []byte(strconv.Itoa(int(intValue)))
+			result, err := aessiv.EncryptDeterministically(buf, aad)
+
+			// TODO: int64 after encryption becomes array with more than 8 bytes, meaning it cannot become an int64 again
+			if err != nil {
+				return nil, err
+			} else {
+				return string(result), nil
+			}
+		} else if stringValue, ok := v.(string); ok {
+			buf := []byte(stringValue)
+			result, err := aessiv.EncryptDeterministically(buf, aad)
+
+			// convert back to string
+			if err != nil {
+				return nil, err
+			} else {
+				return string(result), nil
+			}
+		} else {
+			panic("cannot encrypt unsupported type!")
+		}
+	}
+}
+
+func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
+	aessiv, err := subtle.NewAESSIV(key)
+	if err != nil {
+		panic("issue with generating decryption function")
+	}
+	aad := []byte("")
+
+	return func(v any) (any, error) {
+		if stringValue, ok := v.(string); ok {
+			buf := []byte(stringValue)
+			result, err := aessiv.DecryptDeterministically(buf, aad)
+
+			// convert back to string
+			if err != nil {
+				return nil, err
+			} else {
+				return string(result), nil
+			}
+		} else {
+			panic("cannot decrypt unsupported type!")
+		}
+	}
 }
