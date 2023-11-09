@@ -1,17 +1,36 @@
 package godb
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func getDummyEncryptionScheme() EncryptionScheme {
-	applyInt := func(v int64) (int64, error) {
-		return (v + 1), nil
+	applyInt := func(v any) (any, error) {
+		_v, translated := v.(int64)
+		if !translated {
+			return nil, errors.New("Input is wrong type; should be int64")
+		}
+		return (_v + 1), nil
 	}
 
-	applyString := func(v string) (string, error) {
-		return (v + "abc"), nil
+	applyString := func(v any) (any, error) {
+		_v, translated := v.(string)
+		if !translated {
+			return nil, errors.New("Input is wrong type; should be string")
+		}
+		return (_v + "abc"), nil
 	}
 
-	return EncryptionScheme{ApplyInt: applyInt, ApplyString: applyString}
+	encryptMethods := make(map[string]func(v any) (any, error))
+	encryptMethods["age"] = applyInt
+	encryptMethods["name"] = applyString
+
+	defaultEncrypt := func(v any) (any, error) {
+		return v, nil
+	}
+
+	return EncryptionScheme{EncryptMethods: encryptMethods, DefaultEncrypt: defaultEncrypt}
 }
 
 func TestTupleEncryption(t *testing.T) {
