@@ -194,15 +194,6 @@ func (f *HeapFile) readPage(pageNo int) (*Page, error) {
 // worry about concurrent transactions modifying the Page or HeapFile.  We will
 // add support for concurrent modifications in lab 3.
 func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
-	// go func() error {
-	// 	time.Sleep(1 * time.Second)
-	// 	f.bufPool.AbortTransaction(tid)
-	// 	return errors.New("deadlock found")
-	// }()
-
-	// f.Mutex.Lock()
-	// defer f.Mutex.Unlock()
-	// iterate through just cached pages first
 	f.Mutex.Lock()
 	numPages := f.bufPool.NumPages
 	f.Mutex.Unlock()
@@ -224,8 +215,6 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 			continue
 		}
 
-		//page, err = f.bufPool.GetPage(f, num, tid, WritePerm)
-		//p, _ = (*page).(*heapPage)
 		_, err = p.insertTuple(t)
 		if err != nil {
 			return err
@@ -233,7 +222,6 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 		return nil
 	}
 
-	// f.Mutex.Lock()
 	for i := 0; i < f.NumPages(); i++ {
 		page, err := f.bufPool.GetPage(f, i, tid, WritePerm)
 		if err != nil {
@@ -244,11 +232,6 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 			continue
 		}
 
-		//page, err = f.bufPool.GetPage(f, i, tid, WritePerm)
-		//if err != nil {
-		//	return err
-		//}
-
 		p, _ = (*page).(*heapPage)
 		_, err = p.insertTuple(t)
 		if err != nil {
@@ -257,11 +240,9 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 		return nil
 
 	}
-	// f.Mutex.Unlock()
 
 	f.Mutex.Lock()
 	pageNo := f.NumPagesWithoutLock()
-	// f.Mutex.Lock()
 	var p heapPage = *newHeapPage(f.desc, pageNo, f)
 	var _p Page = &p
 	err := f.flushPage(&_p)
@@ -353,11 +334,9 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 	var iter func() (*Tuple, error)
 	return func() (*Tuple, error) {
 		for {
-			// f.Mutex.Lock()
 			if f.NumPages() == 0 || n >= f.NumPages() {
 				return nil, nil
 			}
-			// f.Mutex.Unlock()
 
 			if n == -1 {
 				n++
@@ -370,7 +349,6 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 			}
 
 			t, err := iter()
-			// f.Mutex.Lock()
 			if t == nil && n+1 < f.NumPages() {
 				n++
 				p, err := f.bufPool.GetPage(f, n, tid, ReadPerm)
@@ -379,9 +357,7 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 				}
 				hp, _ := (*p).(*heapPage)
 				iter = hp.tupleIter()
-				// f.Mutex.Unlock()
 			} else {
-				// f.Mutex.Unlock()
 				return t, err
 			}
 		}
