@@ -82,7 +82,16 @@ func TestHeapFileEncryption(t *testing.T) {
 	hf.insertTuple(&t2, tid)
 
 	e := getDummyEncryptionScheme()
-	encryptedHf, err := e.encrypt(hf, tid)
+	encryptedHf, err := e.encryptOrDecrypt(hf, "encrypted_test.dat", true, tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	et1, err := e.encryptOrDecryptTuple(&t1, true)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	et2, err := e.encryptOrDecryptTuple(&t2, true)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -90,9 +99,41 @@ func TestHeapFileEncryption(t *testing.T) {
 	iter, _ := encryptedHf.Iterator(tid)
 	i := 0
 	for {
-		t, _ := iter()
-		if t == nil {
+		tp, _ := iter()
+		if tp == nil {
 			break
+		}
+		if !tp.equals(et1) && !tp.equals(et2) {
+			t.Errorf("Tuple encrypted incorrectly")
+		}
+		i = i + 1
+	}
+	if i != 2 {
+		t.Errorf("Encrypted HeapFile iterator expected 2 tuples, got %d", i)
+	}
+}
+
+func TestHeapFileDecryption(t *testing.T) {
+	_, t1, t2, hf, _, tid := makeTestVars()
+	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t2, tid)
+
+	e := getDummyEncryptionScheme()
+	encryptedHf, err := e.encryptOrDecrypt(hf, "encrypted_test.dat", true, tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	decryptedHf, err := e.encryptOrDecrypt(encryptedHf, "decrypted_test.dat", false, tid)
+	iter, _ := decryptedHf.Iterator(tid)
+	i := 0
+	for {
+		tp, _ := iter()
+		if tp == nil {
+			break
+		}
+		if !tp.equals(&t1) && !tp.equals(&t2) {
+			t.Errorf("Tuple decrypted incorrectly")
 		}
 		i = i + 1
 	}

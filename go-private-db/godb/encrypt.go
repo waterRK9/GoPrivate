@@ -47,10 +47,9 @@ func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple
 	return &Tuple{Desc: t.Desc, Fields: fields}, nil
 }
 
-func (e *EncryptionScheme) encrypt(hf *HeapFile, tid TransactionID) (*HeapFile, error) {
-	fileName := "encrypted_" + hf.file
+func (e *EncryptionScheme) encryptOrDecrypt(hf *HeapFile, toFile string, encrypt bool, tid TransactionID) (*HeapFile, error) {
 	bp := NewBufferPool(3)
-	encryptedHf, err := NewHeapFile(fileName, hf.desc, bp)
+	_hf, err := NewHeapFile(toFile, hf.desc, bp)
 	if err != nil {
 		return nil, err
 	}
@@ -61,12 +60,12 @@ func (e *EncryptionScheme) encrypt(hf *HeapFile, tid TransactionID) (*HeapFile, 
 		if t == nil {
 			break
 		}
-		encryptedTuple, err := e.encryptOrDecryptTuple(t, true)
+		encryptedTuple, err := e.encryptOrDecryptTuple(t, encrypt)
 		if err != nil {
 			return nil, err
 		}
-		encryptedHf.insertTuple(encryptedTuple, tid)
+		_hf.insertTuple(encryptedTuple, tid)
 	}
 
-	return encryptedHf, nil
+	return _hf, nil
 }
