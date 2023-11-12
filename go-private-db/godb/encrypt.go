@@ -3,6 +3,7 @@ package godb
 import (
 	"strconv"
 
+	"github.com/getamis/alice/crypto/homo/paillier"
 	"github.com/tink-crypto/tink-go/daead/subtle"
 )
 
@@ -11,6 +12,8 @@ type EncryptionScheme struct {
 	DefaultEncrypt func(v any) (any, error)
 	DecryptMethods map[string](func(v any) (any, error))
 	DefaultDecrypt func(v any) (any, error)
+
+	PaillierMap map[string](*(paillier.Paillier))
 }
 
 func (e *EncryptionScheme) getMethod(fname string, encrypt bool) func(v any) (any, error) {
@@ -87,6 +90,7 @@ func newDetEncryptionFunc(key []byte) func(v any) (any, error) {
 		if intValue, ok := v.(int64); ok {
 			buf := []byte(strconv.Itoa(int(intValue)))
 			result, err := aessiv.EncryptDeterministically(buf, aad)
+			//result, err := aessiv.DecryptDeterministically(result, aad)
 
 			// TODO: int64 after encryption becomes array with more than 8 bytes, meaning it cannot become an int64 again
 			if err != nil {
@@ -127,6 +131,55 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 				return nil, err
 			} else {
 				return string(result), nil
+			}
+		} else {
+			panic("cannot decrypt unsupported type!")
+		}
+	}
+}
+
+func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, error) {
+
+	return func(v any) (any, error) {
+		if intValue, ok := v.(int64); ok {
+			pall, err := paillier.NewPaillier(keysize)
+			if err != nil {
+				panic(err)
+			}
+			buf := []byte(strconv.Itoa(int(intValue)))
+			result, err := pall.Encrypt(buf)
+			e.PaillierMap[string(result)] = pall
+
+			// TODO: int64 after encryption becomes array with more than 8 bytes, meaning it cannot become an int64 again
+			if err != nil {
+				return nil, err
+			} else {
+				return string(result), nil
+			}
+		} else {
+			panic("cannot encrypt unsupported type!")
+		}
+	}
+}
+
+func (e *EncryptionScheme) newHomDecryptionFunc() func(v any) (any, error) {
+
+	return func(v any) (any, error) {
+		if stringValue, ok := v.(string); ok {
+			pall, exists := e.PaillierMap[stringValue]
+
+			if !exists {
+				panic("cannot decrypt unencrypted type!")
+			}
+
+			buf := []byte(stringValue)
+			result, err := pall.Decrypt(buf)
+
+			// convert back to int
+			if err != nil {
+				return nil, err
+			} else {
+				return int64(result), nil
 			}
 		} else {
 			panic("cannot decrypt unsupported type!")

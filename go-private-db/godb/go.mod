@@ -11,5 +11,6 @@ require (
 
 require (
 	github.com/chzyer/readline v1.5.1 // indirect
-	golang.org/x/sys v0.1.0 // indirect
+	github.com/tink-crypto/tink-go v0.0.0-20230613075026-d6de17e3f164 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 )
