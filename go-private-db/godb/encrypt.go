@@ -1,6 +1,8 @@
 package godb
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/getamis/alice/crypto/homo/paillier"
@@ -139,14 +141,16 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 }
 
 func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, error) {
+	pall, err := paillier.NewPaillier(keysize)
+	if err != nil {
+		panic(err)
+	}
 
 	return func(v any) (any, error) {
 		if intValue, ok := v.(int64); ok {
-			pall, err := paillier.NewPaillier(keysize)
-			if err != nil {
-				panic(err)
-			}
+
 			buf := []byte(strconv.Itoa(int(intValue)))
+			//buf := (big.NewInt(intValue)).Bytes()
 			result, err := pall.Encrypt(buf)
 			e.PaillierMap[string(result)] = pall
 
@@ -175,14 +179,43 @@ func (e *EncryptionScheme) newHomDecryptionFunc() func(v any) (any, error) {
 			buf := []byte(stringValue)
 			result, err := pall.Decrypt(buf)
 
-			// convert back to int
 			if err != nil {
 				return nil, err
 			} else {
-				return int64(result), nil
+				return string(result), nil
 			}
 		} else {
 			panic("cannot decrypt unsupported type!")
 		}
 	}
+}
+
+func (e *EncryptionScheme) homAdd(v1 any, v2 any) (string, error) {
+	if stringValue1, ok := v1.(string); ok {
+		pall1, exists := e.PaillierMap[stringValue1]
+		if !exists {
+			panic("cannot add unencrypted type!")
+		}
+
+		if stringValue2, ok := v2.(string); ok {
+			pall2, exists := e.PaillierMap[stringValue2]
+			if !exists {
+				panic("cannot add unencrypted type!")
+			}
+
+			if pall1 != pall2 {
+				panic("cannot add encrypted types with different schemes!")
+			}
+
+			sum, _ := pall1.Add([]byte(stringValue1), []byte(stringValue2))
+			e.PaillierMap[string(sum)] = pall1
+			fmt.Println(pall1.Decrypt([]byte(stringValue1)))
+			fmt.Println(pall1.Decrypt([]byte(stringValue2)))
+			fmt.Println(pall1.Decrypt(sum))
+
+			return string(sum), nil
+		}
+
+	}
+	return "", errors.New("could not add numbers")
 }

@@ -10,7 +10,15 @@ require (
 )
 
 require (
+	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
+	github.com/decred/dcrd/dcrec/edwards v1.0.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
+	github.com/getamis/alice v1.0.2 // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/tink-crypto/tink-go v0.0.0-20230613075026-d6de17e3f164 // indirect
+	golang.org/x/crypto v0.9.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
+	google.golang.org/protobuf v1.30.0 // indirect
 )
