@@ -1,6 +1,7 @@
 package godb
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"testing"
@@ -321,12 +322,22 @@ func TestHomDecryptionInt64(t *testing.T) {
 	v2 = 125
 	e1, _ := encryptFunc(v1)
 	e2, _ := encryptFunc(v2)
-	d1, _ := decryptFunc(e1.(string))
-	d2, _ := decryptFunc(e2.(string))
-	if fmt.Sprint(v1) != d1 {
+	d1, _ := decryptFunc(e1)
+	d2, _ := decryptFunc(e2)
+
+	//convert to int
+	d1Byte := make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int := binary.BigEndian.Uint64(d1Byte)
+
+	d2Byte := make([]byte, 8)
+	copy(d2Byte[8-len(d2):], d2)
+	d2Int := binary.BigEndian.Uint64(d2Byte)
+
+	if v1 != int64(d1Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
-	if fmt.Sprint(v2) != d2 {
+	if v2 != int64(d2Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
 
@@ -334,12 +345,20 @@ func TestHomDecryptionInt64(t *testing.T) {
 	v2 = 0
 	e1, _ = encryptFunc(v1)
 	e2, _ = encryptFunc(v2)
-	d1, _ = decryptFunc(e1.(string))
-	d2, _ = decryptFunc(e2.(string))
-	if fmt.Sprint(v1) != d1 {
+	d1, _ = decryptFunc(e1)
+	d2, _ = decryptFunc(e2)
+	d1Byte = make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int = binary.BigEndian.Uint64(d1Byte)
+
+	d2Byte = make([]byte, 8)
+	copy(d2Byte[8-len(d2):], d2)
+	d2Int = binary.BigEndian.Uint64(d2Byte)
+
+	if v1 != int64(d1Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
-	if fmt.Sprint(v2) != d2 {
+	if v2 != int64(d2Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
 
@@ -347,12 +366,22 @@ func TestHomDecryptionInt64(t *testing.T) {
 	v2 = 1234567890
 	e1, _ = encryptFunc(v1)
 	e2, _ = encryptFunc(v2)
-	d1, _ = decryptFunc(e1.(string))
-	d2, _ = decryptFunc(e2.(string))
-	if fmt.Sprint(v1) != d1 {
+	d1, _ = decryptFunc(e1)
+	d2, _ = decryptFunc(e2)
+
+	//convert to int
+	d1Byte = make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int = binary.BigEndian.Uint64(d1Byte)
+
+	d2Byte = make([]byte, 8)
+	copy(d2Byte[8-len(d2):], d2)
+	d2Int = binary.BigEndian.Uint64(d2Byte)
+
+	if v1 != int64(d1Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
-	if fmt.Sprint(v2) != d2 {
+	if v2 != int64(d2Int) {
 		t.Errorf("Expected equal values! got %v != %v", d1, d2)
 	}
 }
@@ -376,8 +405,13 @@ func TestHomSumInt64(t *testing.T) {
 	}
 
 	d1, _ := decryptFunc(sum)
-	if fmt.Sprint(v1+v2) != d1 {
-		t.Errorf("Expected a different sum! got %v != %v", d1, v1+v2)
+
+	//convert to int
+	d1Byte := make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int := binary.BigEndian.Uint64(d1Byte)
+	if v1+v2 != int64(d1Int) {
+		t.Errorf("Expected a different sum! got %v != %v", int64(d1Int), v1+v2)
 	}
 
 	v1 = 0
@@ -390,8 +424,14 @@ func TestHomSumInt64(t *testing.T) {
 		t.Errorf("Could not add numbers!!")
 	}
 	d1, _ = decryptFunc(sum)
-	if fmt.Sprint(v1+v2) != d1 {
-		t.Errorf("Expected a different sum! got %v != %v", d1, v1+v2)
+
+	//convert to int
+	d1Byte = make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int = binary.BigEndian.Uint64(d1Byte)
+
+	if v1+v2 != int64(d1Int) {
+		t.Errorf("Expected a different sum! got %v != %v", int64(d1Int), v1+v2)
 	}
 
 	v1 = 1234567890
@@ -404,7 +444,13 @@ func TestHomSumInt64(t *testing.T) {
 		t.Errorf("Could not add numbers!!")
 	}
 	d1, _ = decryptFunc(sum)
-	if fmt.Sprint(v1+v2) != d1 {
-		t.Errorf("Expected a different sum! got %v != %v", d1, v1+v2)
+
+	//convert to int
+	d1Byte = make([]byte, 8)
+	copy(d1Byte[8-len(d1):], d1)
+	d1Int = binary.BigEndian.Uint64(d1Byte)
+
+	if v1+v2 != int64(d1Int) {
+		t.Errorf("Expected a different sum! got %v != %v", int64(d1Int), v1+v2)
 	}
 }

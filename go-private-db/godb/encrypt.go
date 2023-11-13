@@ -1,7 +1,8 @@
 package godb
 
 import (
-	"errors"
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 
@@ -92,7 +93,6 @@ func newDetEncryptionFunc(key []byte) func(v any) (any, error) {
 		if intValue, ok := v.(int64); ok {
 			buf := []byte(strconv.Itoa(int(intValue)))
 			result, err := aessiv.EncryptDeterministically(buf, aad)
-			//result, err := aessiv.DecryptDeterministically(result, aad)
 
 			// TODO: int64 after encryption becomes array with more than 8 bytes, meaning it cannot become an int64 again
 			if err != nil {
@@ -140,25 +140,29 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 	}
 }
 
-func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, error) {
+func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) ([]byte, error) {
 	pall, err := paillier.NewPaillier(keysize)
 	if err != nil {
 		panic(err)
 	}
 
-	return func(v any) (any, error) {
+	return func(v any) ([]byte, error) {
 		if intValue, ok := v.(int64); ok {
 
-			buf := []byte(strconv.Itoa(int(intValue)))
-			//buf := (big.NewInt(intValue)).Bytes()
-			result, err := pall.Encrypt(buf)
+			buf := new(bytes.Buffer)
+			err := binary.Write(buf, binary.BigEndian, intValue)
+			if err != nil {
+				fmt.Println("binary.Write failed:", err)
+			}
+			byts := buf.Bytes()
+
+			result, err := pall.Encrypt(byts)
 			e.PaillierMap[string(result)] = pall
 
-			// TODO: int64 after encryption becomes array with more than 8 bytes, meaning it cannot become an int64 again
 			if err != nil {
 				return nil, err
 			} else {
-				return string(result), nil
+				return result, nil
 			}
 		} else {
 			panic("cannot encrypt unsupported type!")
@@ -166,56 +170,42 @@ func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, e
 	}
 }
 
-func (e *EncryptionScheme) newHomDecryptionFunc() func(v any) (any, error) {
+func (e *EncryptionScheme) newHomDecryptionFunc() func(v []byte) ([]byte, error) {
 
-	return func(v any) (any, error) {
-		if stringValue, ok := v.(string); ok {
-			pall, exists := e.PaillierMap[stringValue]
+	return func(v []byte) ([]byte, error) {
+		pall, exists := e.PaillierMap[string(v)]
 
-			if !exists {
-				panic("cannot decrypt unencrypted type!")
-			}
+		if !exists {
+			panic("cannot decrypt unencrypted type!")
+		}
 
-			buf := []byte(stringValue)
-			result, err := pall.Decrypt(buf)
+		result, err := pall.Decrypt(v)
 
-			if err != nil {
-				return nil, err
-			} else {
-				return string(result), nil
-			}
+		if err != nil {
+			return nil, err
 		} else {
-			panic("cannot decrypt unsupported type!")
+			return result, nil
 		}
 	}
 }
 
-func (e *EncryptionScheme) homAdd(v1 any, v2 any) (string, error) {
-	if stringValue1, ok := v1.(string); ok {
-		pall1, exists := e.PaillierMap[stringValue1]
-		if !exists {
-			panic("cannot add unencrypted type!")
-		}
-
-		if stringValue2, ok := v2.(string); ok {
-			pall2, exists := e.PaillierMap[stringValue2]
-			if !exists {
-				panic("cannot add unencrypted type!")
-			}
-
-			if pall1 != pall2 {
-				panic("cannot add encrypted types with different schemes!")
-			}
-
-			sum, _ := pall1.Add([]byte(stringValue1), []byte(stringValue2))
-			e.PaillierMap[string(sum)] = pall1
-			fmt.Println(pall1.Decrypt([]byte(stringValue1)))
-			fmt.Println(pall1.Decrypt([]byte(stringValue2)))
-			fmt.Println(pall1.Decrypt(sum))
-
-			return string(sum), nil
-		}
-
+func (e *EncryptionScheme) homAdd(v1 []byte, v2 []byte) ([]byte, error) {
+	pall1, exists := e.PaillierMap[string(v1)]
+	if !exists {
+		panic("cannot add unencrypted type!")
 	}
-	return "", errors.New("could not add numbers")
+
+	pall2, exists := e.PaillierMap[string(v2)]
+	if !exists {
+		panic("cannot add unencrypted type!")
+	}
+
+	if pall1 != pall2 {
+		panic("cannot add encrypted types with different schemes!")
+	}
+
+	sum, _ := pall1.Add(v1, v2)
+	e.PaillierMap[string(sum)] = pall1
+
+	return sum, nil
 }
