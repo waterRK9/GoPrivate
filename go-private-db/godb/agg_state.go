@@ -1,6 +1,9 @@
 package godb
 
-import "golang.org/x/exp/constraints"
+import (
+	"github.com/getamis/alice/crypto/homo"
+	"golang.org/x/exp/constraints"
+)
 
 type Number interface {
 	constraints.Integer | constraints.Float
@@ -16,6 +19,26 @@ type AggState interface {
 
 	// Makes an copy of the aggregation state.
 	Copy() AggState
+
+	// Adds an tuple to the aggregation state.
+	AddTuple(*Tuple)
+
+	// Returns the final result of the aggregation as a tuple.
+	Finalize() *Tuple
+
+	// Gets the tuple description of the tuple that Finalize() returns.
+	GetTupleDesc() *TupleDesc
+}
+
+type EncryptedAggState interface {
+
+	// Initializes an aggregation state. Is supplied with an alias,
+	// an expr to evaluate an input tuple into a DBValue, and a getter
+	// to extract from the DBValue its int or string field's value.
+	Init(alias string, expr Expr, getter func(DBValue) any, publicKey homo.Pubkey) error
+
+	// Makes an copy of the aggregation state.
+	Copy() EncryptedAggState
 
 	// Adds an tuple to the aggregation state.
 	AddTuple(*Tuple)
@@ -127,8 +150,21 @@ type AvgAggState[T Number] struct {
 	sum    T
 }
 
+type EncryptedAvgAggState[T []byte] struct {
+	alias     string
+	expr      Expr
+	getter    func(DBValue) any
+	count     T
+	sum       T
+	publicKey homo.Pubkey
+}
+
 func (a *AvgAggState[T]) Copy() AggState {
 	return &AvgAggState[T]{a.alias, a.expr, a.getter, a.count, a.sum}
+}
+
+func (a *EncryptedAvgAggState[T]) Copy() EncryptedAggState {
+	return &EncryptedAvgAggState[T]{a.alias, a.expr, a.getter, a.count, a.sum, a.publicKey}
 }
 
 func (a *AvgAggState[T]) Init(alias string, expr Expr, getter func(DBValue) any) error {
@@ -140,10 +176,26 @@ func (a *AvgAggState[T]) Init(alias string, expr Expr, getter func(DBValue) any)
 	return nil
 }
 
+func (a *EncryptedAvgAggState[T]) Init(alias string, expr Expr, getter func(DBValue) any, publicKey homo.Pubkey) error {
+	a.alias = alias
+	a.expr = expr
+	a.getter = getter
+	a.count = make([]byte, 8)
+	a.sum = make([]byte, 8)
+	a.publicKey = publicKey
+	return nil
+}
+
 func (a *AvgAggState[T]) AddTuple(t *Tuple) {
 	v, _ := a.expr.EvalExpr(t)
 	a.sum += a.getter(v).(T)
 	a.count++
+}
+
+func (a *EncryptedAvgAggState[T]) AddTuple(t *Tuple) {
+	v, _ := a.expr.EvalExpr(t)
+	a.sum = a.getter(v).(T)
+	// a.count++
 }
 
 func (a *AvgAggState[T]) GetTupleDesc() *TupleDesc {
@@ -154,9 +206,26 @@ func (a *AvgAggState[T]) GetTupleDesc() *TupleDesc {
 	return &td
 }
 
+func (a *EncryptedAvgAggState[T]) GetTupleDesc() *TupleDesc {
+	ft := FieldType{a.alias, "", IntType}
+	fts := []FieldType{ft}
+	td := TupleDesc{}
+	td.Fields = fts
+	return &td
+}
+
 func (a *AvgAggState[T]) Finalize() *Tuple {
 	td := a.GetTupleDesc()
 	f := IntField{int64(a.sum / a.count)}
+	fs := []DBValue{f}
+	t := Tuple{*td, fs, nil}
+	return &t
+}
+
+func (a *EncryptedAvgAggState[T]) Finalize() *Tuple {
+	td := a.GetTupleDesc()
+	// f := IntField{int64(a.sum / a.count)}
+	f := IntField{int64(0)}
 	fs := []DBValue{f}
 	t := Tuple{*td, fs, nil}
 	return &t

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/getamis/alice/crypto/homo"
 	"github.com/getamis/alice/crypto/homo/paillier"
 	"github.com/tink-crypto/tink-go/daead/subtle"
 )
@@ -17,6 +18,7 @@ type EncryptionScheme struct {
 	DefaultDecrypt func(v any) (any, error)
 
 	PaillierMap map[string](*(paillier.Paillier))
+	PublicKeys  map[string](*homo.Pubkey)
 }
 
 func (e *EncryptionScheme) getMethod(fname string, encrypt bool) func(v any) (any, error) {
@@ -41,7 +43,6 @@ func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple
 	fields := make([]DBValue, len(t.Fields))
 	for i := 0; i < len(t.Desc.Fields); i++ {
 		method := e.getMethod(t.Desc.Fields[i].Fname, encrypt)
-
 		if t.Desc.Fields[i].Ftype == StringType {
 			encryptedField, err := method(t.Fields[i].(StringField).Value)
 			if err != nil {
@@ -138,6 +139,47 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 			panic("cannot decrypt unsupported type!")
 		}
 	}
+}
+
+func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (any, error), homo.Pubkey) {
+	pall, err := paillier.NewPaillier(keysize)
+	if err != nil {
+		panic(err)
+	}
+
+	encrypt := func(v any) (any, error) {
+		if intValue, ok := v.(int64); ok {
+
+			buf := new(bytes.Buffer)
+			err := binary.Write(buf, binary.BigEndian, intValue)
+			if err != nil {
+				fmt.Println("binary.Write failed:", err)
+			}
+			byts := buf.Bytes()
+
+			result, err := pall.Encrypt(byts)
+
+			if err != nil {
+				return nil, err
+			} else {
+				return result, nil
+			}
+		} else {
+			panic("cannot encrypt unsupported type!")
+		}
+	}
+
+	decrypt := func(v any) (any, error) {
+		result, err := pall.Decrypt(v.([]byte))
+
+		if err != nil {
+			return nil, err
+		} else {
+			return result, nil
+		}
+	}
+
+	return encrypt, decrypt, pall.GetPubKey()
 }
 
 func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, error) {
