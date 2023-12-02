@@ -9,7 +9,7 @@ func MakeTestPatientDatabase(bp *BufferPool) (*HeapFile, error) {
 	var td = TupleDesc{Fields: []FieldType{
 		{Fname: "id", Ftype: StringType},
 		{Fname: "ssn", Ftype: StringType},
-		{Fname: "age", Ftype: StringType},
+		{Fname: "age", Ftype: IntType},
 		{Fname: "first_name", Ftype: StringType},
 		{Fname: "diagnosis_code", Ftype: StringType},
 	}}

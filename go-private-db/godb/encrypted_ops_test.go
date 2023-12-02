@@ -29,5 +29,9 @@ func TestEncryptedAvgAgg(t *testing.T) {
 
 	// aa := EncryptedAvgAggState[[]byte]{}
 	// expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t"}}
-	// aa.Init("avg", &expr, intAggGetter)
+	_, exists := e.PublicKeys["age"]
+	if !exists {
+		println("COULD NOT FIND")
+	}
+	// aa.Init("avg", &expr, intAggGetter, *e.PublicKeys["age"])
 }

@@ -68,7 +68,7 @@ func NewAggrSelectNode(op string, arg *LogicalSelectNode, alias string) LogicalS
 	lsn := LogicalSelectNode{}
 	lsn.exprType = ExprAggr
 	lsn.args = []*LogicalSelectNode{arg}
-	//lsn.field = field
+	lsn.field = arg.field
 	lsn.funcOp = &op
 	lsn.alias = alias
 	return lsn
@@ -334,6 +334,7 @@ func parseExpr(c *Catalog, expr sqlparser.Expr, alias string) (*LogicalSelectNod
 	case *sqlparser.FuncExpr:
 		funName := strings.ToLower(sqlparser.String(expr.Name))
 		if isAgg(funName) {
+			println("in isAgg in parseExpr")
 			if len(expr.Exprs) != 1 {
 				return nil, GoDBError{ParseError, fmt.Sprintf("expected one argument to aggregate %s in select list", sqlparser.String(expr.Name))}
 			}
@@ -350,6 +351,7 @@ func parseExpr(c *Catalog, expr sqlparser.Expr, alias string) (*LogicalSelectNod
 			if err != nil {
 				return nil, err
 			}
+			println("before returning outer", field.field)
 			outer := NewAggrSelectNode(funName, field, alias)
 			return &outer, nil
 		} else {
@@ -411,6 +413,7 @@ func parseExpr(c *Catalog, expr sqlparser.Expr, alias string) (*LogicalSelectNod
 func parseSelect(c *Catalog, stmt sqlparser.SelectExpr) (*LogicalSelectNode, error) {
 	star, ok := stmt.(*sqlparser.StarExpr)
 	if ok {
+		println("ok was true")
 		node := NewStarSelectNode(strings.ToLower(sqlparser.String(star.TableName)))
 		return &node, nil
 	}
@@ -418,6 +421,7 @@ func parseSelect(c *Catalog, stmt sqlparser.SelectExpr) (*LogicalSelectNode, err
 	switch exprAlias := stmt.(type) {
 	case (*sqlparser.AliasedExpr):
 		alias := strings.ToLower(sqlparser.String(exprAlias.As))
+		println("before calling parseExpr")
 		return parseExpr(c, exprAlias.Expr, alias)
 	default:
 		return nil, GoDBError{ParseError, fmt.Sprintf("unsupported expression type %s in select list", reflect.TypeOf(exprAlias))}
@@ -427,10 +431,13 @@ func parseSelect(c *Catalog, stmt sqlparser.SelectExpr) (*LogicalSelectNode, err
 }
 
 func extractAggs(s *LogicalSelectNode) []*LogicalSelectNode {
+	println("extracting aggs")
 	switch s.exprType {
 	case ExprAggr:
+		println("check 1", s.field)
 		return []*LogicalSelectNode{s}
 	case ExprFunc:
+		println("check 2")
 		var aggs []*LogicalSelectNode
 		for _, subs := range s.args {
 			aggs = append(aggs, extractAggs(subs)...)
@@ -482,11 +489,14 @@ func parseStatement(c *Catalog, s *sqlparser.Select) (*LogicalPlan, error) {
 	}
 	//extract select list
 	for _, stmt := range s.SelectExprs {
+		println("before calling parseSelect")
 		sel, err := parseSelect(c, stmt)
+		println("SEL", sel.field, sel.args)
 		if err != nil {
 			return nil, err
 		}
 		selects = append(selects, sel)
+		println("before calling extractAggs")
 		aggs = append(aggs, extractAggs(sel)...)
 	}
 

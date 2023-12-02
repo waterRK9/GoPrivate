@@ -2,6 +2,7 @@ package godb
 
 import (
 	"bytes"
+	b64 "encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -12,13 +13,13 @@ import (
 )
 
 type EncryptionScheme struct {
-	EncryptMethods map[string](func(v any) (any, error))
-	DefaultEncrypt func(v any) (any, error)
-	DecryptMethods map[string](func(v any) (any, error))
-	DefaultDecrypt func(v any) (any, error)
-
-	PaillierMap map[string](*(paillier.Paillier))
-	PublicKeys  map[string](*homo.Pubkey)
+	EncryptMethods                 map[string](func(v any) (any, error))
+	DefaultEncrypt                 func(v any) (any, error)
+	DecryptMethods                 map[string](func(v any) (any, error))
+	DefaultDecrypt                 func(v any) (any, error)
+	IntFieldEncryptedAsStringField map[string]bool
+	PaillierMap                    map[string](*(paillier.Paillier))
+	PublicKeys                     map[string](*homo.Pubkey)
 }
 
 func (e *EncryptionScheme) getMethod(fname string, encrypt bool) func(v any) (any, error) {
@@ -42,8 +43,23 @@ func (e *EncryptionScheme) getMethod(fname string, encrypt bool) func(v any) (an
 func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple, error) {
 	fields := make([]DBValue, len(t.Fields))
 	for i := 0; i < len(t.Desc.Fields); i++ {
-		method := e.getMethod(t.Desc.Fields[i].Fname, encrypt)
-		if t.Desc.Fields[i].Ftype == StringType {
+		fname := t.Desc.Fields[i].Fname
+		method := e.getMethod(fname, encrypt)
+		_, swappedTypes := e.IntFieldEncryptedAsStringField[fname]
+
+		if swappedTypes && encrypt {
+			encryptedField, err := method(t.Fields[i].(IntField).Value)
+			if err != nil {
+				return nil, err
+			}
+			fields[i] = StringField{Value: encryptedField.(string)}
+		} else if swappedTypes && !encrypt {
+			encryptedField, err := method(t.Fields[i].(StringField).Value)
+			if err != nil {
+				return nil, err
+			}
+			fields[i] = IntField{Value: encryptedField.(int64)}
+		} else if t.Desc.Fields[i].Ftype == StringType {
 			encryptedField, err := method(t.Fields[i].(StringField).Value)
 			if err != nil {
 				return nil, err
@@ -62,6 +78,17 @@ func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple
 
 func (e *EncryptionScheme) encryptOrDecrypt(hf *HeapFile, toFile string, encrypt bool, tid TransactionID) (*HeapFile, error) {
 	bp := NewBufferPool(3)
+
+	newDesc := hf.desc.copy()
+	for i := 0; i < len(newDesc.Fields); i++ {
+		_, swappedTypes := e.IntFieldEncryptedAsStringField[newDesc.Fields[i].Fname]
+		if swappedTypes && encrypt {
+			newDesc.Fields[i].Ftype = StringType
+		} else if swappedTypes && !encrypt {
+			newDesc.Fields[i].Ftype = IntType
+		}
+	}
+
 	_hf, err := NewHeapFile(toFile, hf.desc, bp)
 	if err != nil {
 		return nil, err
@@ -158,11 +185,11 @@ func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (a
 			byts := buf.Bytes()
 
 			result, err := pall.Encrypt(byts)
-
 			if err != nil {
 				return nil, err
 			} else {
-				return result, nil
+				str := b64.StdEncoding.EncodeToString([]byte(result))
+				return str, nil
 			}
 		} else {
 			panic("cannot encrypt unsupported type!")
@@ -170,13 +197,21 @@ func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (a
 	}
 
 	decrypt := func(v any) (any, error) {
-		result, err := pall.Decrypt(v.([]byte))
+		str, err := b64.StdEncoding.DecodeString(v.(string))
+		if err != nil {
+			return nil, err
+		}
+
+		result, err := pall.Decrypt(str)
 
 		if err != nil {
 			return nil, err
-		} else {
-			return result, nil
 		}
+
+		var num int64
+		buf := bytes.NewBuffer(result)
+		binary.Read(buf, binary.BigEndian, &num)
+		return num, nil
 	}
 
 	return encrypt, decrypt, pall.GetPubKey()

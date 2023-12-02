@@ -11,6 +11,7 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 	decryptMethods := make(map[string]func(v any) (any, error))
 	paillierMap := make(map[string](*(paillier.Paillier)))
 	publicKeys := make(map[string](*homo.Pubkey))
+	intFieldEncryptedAsStringField := make(map[string]bool)
 
 	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
 	detEncryptFunc := newDetEncryptionFunc(key)
@@ -20,16 +21,17 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 	homEncryptFunc, homDecryptFunc, publicKey := newHomEncryptionFunc(keySize)
 
 	e := EncryptionScheme{
-		EncryptMethods: encryptMethods,
-		DefaultEncrypt: detEncryptFunc,
-		DecryptMethods: decryptMethods,
-		DefaultDecrypt: detDecryptFunc,
-		PaillierMap:    paillierMap,
-		PublicKeys:     publicKeys,
+		EncryptMethods:                 encryptMethods,
+		DefaultEncrypt:                 detEncryptFunc,
+		DecryptMethods:                 decryptMethods,
+		DefaultDecrypt:                 detDecryptFunc,
+		PaillierMap:                    paillierMap,
+		PublicKeys:                     publicKeys,
+		IntFieldEncryptedAsStringField: intFieldEncryptedAsStringField,
 	}
 
 	bp := NewBufferPool(10)
-	c, err := NewCatalogFromFile("catalog.txt", bp, "./")
+	c, err := NewCatalogFromFile("patients_catalog.txt", bp, "./")
 
 	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
@@ -43,7 +45,9 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 		for _, agg := range aggs {
 			e.EncryptMethods[agg.field] = homEncryptFunc
 			e.DecryptMethods[agg.field] = homDecryptFunc
+			println("HERE", agg.field, agg.table, agg.value)
 			e.PublicKeys[agg.field] = &publicKey
+			e.IntFieldEncryptedAsStringField[agg.field] = true
 		}
 	}
 	return nil, e
