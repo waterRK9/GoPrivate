@@ -46,7 +46,6 @@ func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple
 		fname := t.Desc.Fields[i].Fname
 		method := e.getMethod(fname, encrypt)
 		_, swappedTypes := e.IntFieldEncryptedAsStringField[fname]
-
 		if swappedTypes && encrypt {
 			encryptedField, err := method(t.Fields[i].(IntField).Value)
 			if err != nil {
@@ -166,6 +165,19 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 			panic("cannot decrypt unsupported type!")
 		}
 	}
+}
+
+func strToBytes(str string) ([]byte, error) {
+	b, err := b64.StdEncoding.DecodeString(str)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func bytesToStr(b []byte) string {
+	str := b64.StdEncoding.EncodeToString(b)
+	return str
 }
 
 func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (any, error), homo.Pubkey) {

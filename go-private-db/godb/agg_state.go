@@ -155,7 +155,7 @@ type EncryptedAvgAggState[T string] struct {
 	expr      Expr
 	getter    func(DBValue) any
 	count     T
-	sum       T
+	sum       string
 	publicKey homo.Pubkey
 }
 
@@ -181,7 +181,9 @@ func (a *EncryptedAvgAggState[T]) Init(alias string, expr Expr, getter func(DBVa
 	a.expr = expr
 	a.getter = getter
 	a.count = "0"
-	a.sum = "0"
+
+	z, _ := publicKey.Encrypt(make([]byte, 0))
+	a.sum = bytesToStr(z)
 	a.publicKey = publicKey
 	return nil
 }
@@ -194,7 +196,10 @@ func (a *AvgAggState[T]) AddTuple(t *Tuple) {
 
 func (a *EncryptedAvgAggState[T]) AddTuple(t *Tuple) {
 	v, _ := a.expr.EvalExpr(t)
-	a.sum = a.getter(v).(T)
+	b1, _ := strToBytes(a.sum)
+	b2, _ := strToBytes(a.getter(v).(string))
+	result, _ := a.publicKey.Add(b1, b2)
+	a.sum = bytesToStr(result)
 	// a.count++
 }
 
@@ -207,7 +212,7 @@ func (a *AvgAggState[T]) GetTupleDesc() *TupleDesc {
 }
 
 func (a *EncryptedAvgAggState[T]) GetTupleDesc() *TupleDesc {
-	ft := FieldType{a.alias, "", IntType}
+	ft := FieldType{a.alias, "", StringType}
 	fts := []FieldType{ft}
 	td := TupleDesc{}
 	td.Fields = fts
@@ -225,7 +230,7 @@ func (a *AvgAggState[T]) Finalize() *Tuple {
 func (a *EncryptedAvgAggState[T]) Finalize() *Tuple {
 	td := a.GetTupleDesc()
 	// f := IntField{int64(a.sum / a.count)}
-	f := IntField{int64(0)}
+	f := StringField{a.sum}
 	fs := []DBValue{f}
 	t := Tuple{*td, fs, nil}
 	return &t

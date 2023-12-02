@@ -45,7 +45,14 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	if tup == nil {
 		t.Fatalf("Expected non-null tuple")
 	}
-	// sum := tup.Fields[0].(IntField).Value
+	sum := tup.Fields[0].(StringField).Value
+	println(sum)
+
+	result, err := e.encryptOrDecryptTuple(tup, false)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	println(result)
 	// if sum != 1024 {
 	// 	t.Errorf("unexpected sum")
 	// }
