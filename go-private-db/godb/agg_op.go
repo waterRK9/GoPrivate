@@ -12,6 +12,18 @@ type Aggregator struct {
 	child Operator // the child operator for the inputs to aggregate
 }
 
+type EncryptedAggregator struct {
+	// Expressions that when applied to tuples from the child operators,
+	// respectively, return the value of the group by key tuple
+	groupByFields []Expr
+
+	// Aggregation states that serves as a template as to which types of
+	// aggregations in which order are to be computed for every group.
+	newAggState []EncryptedAggState
+
+	child Operator // the child operator for the inputs to aggregate
+}
+
 type AggType int
 
 const (
@@ -31,6 +43,10 @@ func NewAggregator(emptyAggState []AggState, child Operator) *Aggregator {
 	return &Aggregator{nil, emptyAggState, child}
 }
 
+func NewEncryptedAggregator(emptyAggState []EncryptedAggState, child Operator) *EncryptedAggregator {
+	return &EncryptedAggregator{nil, emptyAggState, child}
+}
+
 // Return a TupleDescriptor for this aggregation. If the aggregator has no group-by, the
 // returned descriptor should contain the union of the fields in the descriptors of the
 // aggregation states. If the aggregator has a group-by, the returned descriptor will
@@ -40,6 +56,24 @@ func NewAggregator(emptyAggState []AggState, child Operator) *Aggregator {
 // HINT: for groupByFields, you can use [Expr.GetExprType] to get the FieldType
 // HINT: use the merge function you implemented for TupleDesc in lab1 to merge the two TupleDescs
 func (a *Aggregator) Descriptor() *TupleDesc {
+	aggDesc := a.newAggState[0].GetTupleDesc()
+	for i := 1; i < len(a.newAggState); i++ {
+		aggDesc = aggDesc.merge(a.newAggState[i].GetTupleDesc())
+	}
+	if len(a.groupByFields) == 0 {
+		return aggDesc
+	}
+
+	groupByFieldTypes := make([]FieldType, len(a.groupByFields))
+	for i := 0; i < len(a.groupByFields); i++ {
+		groupByFieldTypes[i] = a.groupByFields[i].GetExprType()
+	}
+
+	groupByDesc := &TupleDesc{Fields: groupByFieldTypes}
+	return groupByDesc.merge(aggDesc)
+}
+
+func (a *EncryptedAggregator) Descriptor() *TupleDesc {
 	aggDesc := a.newAggState[0].GetTupleDesc()
 	for i := 1; i < len(a.newAggState); i++ {
 		aggDesc = aggDesc.merge(a.newAggState[i].GetTupleDesc())
@@ -142,6 +176,86 @@ func (a *Aggregator) Iterator(tid TransactionID) (func() (*Tuple, error), error)
 	}, nil
 }
 
+func (a *EncryptedAggregator) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
+	// the child iterator
+	childIter, err := a.child.Iterator(tid)
+	if err != nil {
+		return nil, err
+	}
+	if childIter == nil {
+		return nil, GoDBError{MalformedDataError, "child iter unexpectedly nil"}
+
+	}
+	// the map that stores the aggregation state of each group
+	aggState := make(map[any]*[]EncryptedAggState)
+	if a.groupByFields == nil {
+		var newAggState []EncryptedAggState
+		for _, as := range a.newAggState {
+			copy := as.Copy()
+			if copy == nil {
+				return nil, GoDBError{MalformedDataError, "aggState Copy unexpectedly returned nil"}
+			}
+			newAggState = append(newAggState, copy)
+		}
+
+		aggState[DefaultGroup] = &newAggState
+	}
+	// the list of group key tuples
+	var groupByList []*Tuple
+	// the iterator for iterating thru the finalized aggregation results for each group
+	var finalizedIter func() (*Tuple, error)
+	return func() (*Tuple, error) {
+		// iterates thru all child tuples
+		for t, err := childIter(); t != nil || err != nil; t, err = childIter() {
+			if err != nil {
+				return nil, err
+			}
+			if t == nil {
+				return nil, nil
+			}
+
+			if a.groupByFields == nil { // adds tuple to the aggregation in the case of no group-by
+				for i := 0; i < len(a.newAggState); i++ {
+					(*aggState[DefaultGroup])[i].AddTuple(t)
+				}
+			} else { // adds tuple to the aggregation with grouping
+				keygenTup, err := extractGroupByKeyTupleEncrypted(a, t)
+				if err != nil {
+					return nil, err
+				}
+
+				key := keygenTup.tupleKey()
+				if aggState[key] == nil {
+					asNew := make([]EncryptedAggState, len(a.newAggState))
+					aggState[key] = &asNew
+					groupByList = append(groupByList, keygenTup)
+				}
+
+				addTupleToGrpAggStateEncrypted(a, t, aggState[key])
+			}
+		}
+
+		if finalizedIter == nil { // builds the iterator for iterating thru the finalized aggregation results for each group
+			if a.groupByFields == nil {
+				var tup *Tuple
+				for i := 0; i < len(a.newAggState); i++ {
+					newTup := (*aggState[DefaultGroup])[i].Finalize()
+					if tup == nil {
+						tup = newTup
+					} else {
+						tup = joinTuples(tup, newTup)
+					}
+				}
+				finalizedIter = func() (*Tuple, error) { return nil, nil }
+				return tup, nil
+			} else {
+				finalizedIter = getFinalizedTuplesIteratorEncrypted(a, groupByList, aggState)
+			}
+		}
+		return finalizedIter()
+	}, nil
+}
+
 // Given a tuple t from a child iteror, return a tuple that identifies t's group.
 // The returned tuple should contain the fields from the groupByFields list
 // passed into the aggregator constructor.  The ith field can be extracted
@@ -149,6 +263,22 @@ func (a *Aggregator) Iterator(tid TransactionID) (func() (*Tuple, error), error)
 // groupByFields.
 // If there is any error during expression evaluation, return the error.
 func extractGroupByKeyTuple(a *Aggregator, t *Tuple) (*Tuple, error) {
+	var fields []DBValue
+	var fieldTypes []FieldType
+	for _, groupByField := range a.groupByFields {
+		f, err := groupByField.EvalExpr(t)
+		if err != nil {
+			return nil, err
+		}
+		fields = append(fields, f)
+		ft := groupByField.GetExprType()
+		fieldTypes = append(fieldTypes, ft)
+	}
+	desc := &TupleDesc{Fields: fieldTypes}
+	return &Tuple{Desc: *desc, Fields: fields}, nil
+}
+
+func extractGroupByKeyTupleEncrypted(a *EncryptedAggregator, t *Tuple) (*Tuple, error) {
 	var fields []DBValue
 	var fieldTypes []FieldType
 	for _, groupByField := range a.groupByFields {
@@ -178,6 +308,15 @@ func addTupleToGrpAggState(a *Aggregator, t *Tuple, grpAggState *[]AggState) {
 	}
 }
 
+func addTupleToGrpAggStateEncrypted(a *EncryptedAggregator, t *Tuple, grpAggState *[]EncryptedAggState) {
+	for i := 0; i < len(*grpAggState); i++ {
+		if (*grpAggState)[i] == nil {
+			(*grpAggState)[i] = a.newAggState[i].Copy()
+		}
+		(*grpAggState)[i].AddTuple(t)
+	}
+}
+
 // Given that all child tuples have been added, return an iterator that iterates
 // through the finalized aggregate result one group at a time. The returned tuples should
 // be structured according to the TupleDesc returned from the Descriptor() method.
@@ -185,6 +324,23 @@ func addTupleToGrpAggState(a *Aggregator, t *Tuple, grpAggState *[]AggState) {
 // Then, you should get the groupByTuple and merge it with each of the AggState tuples using the
 // joinTuples function in tuple.go you wrote in lab 1.
 func getFinalizedTuplesIterator(a *Aggregator, groupByList []*Tuple, aggState map[any]*[]AggState) func() (*Tuple, error) {
+	curGbyTuple := 0 // "captured" counter to track the current tuple we are iterating over
+	return func() (*Tuple, error) {
+		if curGbyTuple >= len(groupByList) {
+			return nil, nil
+		}
+		keygenTup := groupByList[curGbyTuple]
+		key := keygenTup.tupleKey()
+		t := keygenTup
+		for _, as := range *(aggState[key]) {
+			t = joinTuples(t, as.Finalize())
+		}
+		curGbyTuple++
+		return t, nil
+	}
+}
+
+func getFinalizedTuplesIteratorEncrypted(a *EncryptedAggregator, groupByList []*Tuple, aggState map[any]*[]EncryptedAggState) func() (*Tuple, error) {
 	curGbyTuple := 0 // "captured" counter to track the current tuple we are iterating over
 	return func() (*Tuple, error) {
 		if curGbyTuple >= len(groupByList) {

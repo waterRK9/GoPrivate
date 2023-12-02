@@ -150,7 +150,7 @@ type AvgAggState[T Number] struct {
 	sum    T
 }
 
-type EncryptedAvgAggState[T []byte] struct {
+type EncryptedAvgAggState[T string] struct {
 	alias     string
 	expr      Expr
 	getter    func(DBValue) any
@@ -180,8 +180,8 @@ func (a *EncryptedAvgAggState[T]) Init(alias string, expr Expr, getter func(DBVa
 	a.alias = alias
 	a.expr = expr
 	a.getter = getter
-	a.count = make([]byte, 8)
-	a.sum = make([]byte, 8)
+	a.count = "0"
+	a.sum = "0"
 	a.publicKey = publicKey
 	return nil
 }
