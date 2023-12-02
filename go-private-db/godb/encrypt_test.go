@@ -327,11 +327,11 @@ func TestHomDecryptionInt64(t *testing.T) {
 
 	//convert to int
 	d1Byte := make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int := binary.BigEndian.Uint64(d1Byte)
 
 	d2Byte := make([]byte, 8)
-	copy(d2Byte[8-len(d2):], d2)
+	copy(d2Byte[8-len(d2.([]byte)):], d2.([]byte))
 	d2Int := binary.BigEndian.Uint64(d2Byte)
 
 	if v1 != int64(d1Int) {
@@ -348,11 +348,11 @@ func TestHomDecryptionInt64(t *testing.T) {
 	d1, _ = decryptFunc(e1)
 	d2, _ = decryptFunc(e2)
 	d1Byte = make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int = binary.BigEndian.Uint64(d1Byte)
 
 	d2Byte = make([]byte, 8)
-	copy(d2Byte[8-len(d2):], d2)
+	copy(d2Byte[8-len(d2.([]byte)):], d2.([]byte))
 	d2Int = binary.BigEndian.Uint64(d2Byte)
 
 	if v1 != int64(d1Int) {
@@ -371,11 +371,11 @@ func TestHomDecryptionInt64(t *testing.T) {
 
 	//convert to int
 	d1Byte = make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int = binary.BigEndian.Uint64(d1Byte)
 
 	d2Byte = make([]byte, 8)
-	copy(d2Byte[8-len(d2):], d2)
+	copy(d2Byte[8-len(d2.([]byte)):], d2.([]byte))
 	d2Int = binary.BigEndian.Uint64(d2Byte)
 
 	if v1 != int64(d1Int) {
@@ -399,7 +399,7 @@ func TestHomSumInt64(t *testing.T) {
 	v2 = 125
 	e1, _ := encryptFunc(v1)
 	e2, _ := encryptFunc(v2)
-	sum, err := e.homAdd(e1, e2)
+	sum, err := e.homAdd(e1.([]byte), e2.([]byte))
 	if err != nil {
 		t.Errorf("Could not add numbers!!")
 	}
@@ -408,7 +408,7 @@ func TestHomSumInt64(t *testing.T) {
 
 	//convert to int
 	d1Byte := make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int := binary.BigEndian.Uint64(d1Byte)
 	if v1+v2 != int64(d1Int) {
 		t.Errorf("Expected a different sum! got %v != %v", int64(d1Int), v1+v2)
@@ -418,7 +418,7 @@ func TestHomSumInt64(t *testing.T) {
 	v2 = 0
 	e1, _ = encryptFunc(v1)
 	e2, _ = encryptFunc(v2)
-	sum, err = e.homAdd(e1, e2)
+	sum, err = e.homAdd(e1.([]byte), e2.([]byte))
 
 	if err != nil {
 		t.Errorf("Could not add numbers!!")
@@ -427,7 +427,7 @@ func TestHomSumInt64(t *testing.T) {
 
 	//convert to int
 	d1Byte = make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int = binary.BigEndian.Uint64(d1Byte)
 
 	if v1+v2 != int64(d1Int) {
@@ -438,7 +438,7 @@ func TestHomSumInt64(t *testing.T) {
 	v2 = 1234567890
 	e1, _ = encryptFunc(v1)
 	e2, _ = encryptFunc(v2)
-	sum, err = e.homAdd(e1, e2)
+	sum, err = e.homAdd(e1.([]byte), e2.([]byte))
 
 	if err != nil {
 		t.Errorf("Could not add numbers!!")
@@ -447,7 +447,7 @@ func TestHomSumInt64(t *testing.T) {
 
 	//convert to int
 	d1Byte = make([]byte, 8)
-	copy(d1Byte[8-len(d1):], d1)
+	copy(d1Byte[8-len(d1.([]byte)):], d1.([]byte))
 	d1Int = binary.BigEndian.Uint64(d1Byte)
 
 	if v1+v2 != int64(d1Int) {

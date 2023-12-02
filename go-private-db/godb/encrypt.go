@@ -140,13 +140,13 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 	}
 }
 
-func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) ([]byte, error) {
+func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) (any, error) {
 	pall, err := paillier.NewPaillier(keysize)
 	if err != nil {
 		panic(err)
 	}
 
-	return func(v any) ([]byte, error) {
+	return func(v any) (any, error) {
 		if intValue, ok := v.(int64); ok {
 
 			buf := new(bytes.Buffer)
@@ -170,16 +170,16 @@ func (e *EncryptionScheme) newHomEncryptionFunc(keysize int) func(v any) ([]byte
 	}
 }
 
-func (e *EncryptionScheme) newHomDecryptionFunc() func(v []byte) ([]byte, error) {
+func (e *EncryptionScheme) newHomDecryptionFunc() func(v any) (any, error) {
 
-	return func(v []byte) ([]byte, error) {
-		pall, exists := e.PaillierMap[string(v)]
+	return func(v any) (any, error) {
+		pall, exists := e.PaillierMap[string(v.([]byte))]
 
 		if !exists {
 			panic("cannot decrypt unencrypted type!")
 		}
 
-		result, err := pall.Decrypt(v)
+		result, err := pall.Decrypt(v.([]byte))
 
 		if err != nil {
 			return nil, err
