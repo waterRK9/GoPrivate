@@ -13,6 +13,10 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 	publicKeys := make(map[string](*homo.Pubkey))
 	intFieldEncryptedAsStringField := make(map[string]bool)
 
+	defaultEncrypt := func(v any) (any, error) {
+		return v, nil
+	}
+
 	key := []byte("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
 	detEncryptFunc := newDetEncryptionFunc(key)
 	detDecryptFunc := newDetDecryptionFunc(key)
@@ -45,9 +49,17 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 		for _, agg := range aggs {
 			e.EncryptMethods[agg.field] = homEncryptFunc
 			e.DecryptMethods[agg.field] = homDecryptFunc
-			println("HERE", agg.field, agg.table, agg.value)
 			e.PublicKeys[agg.field] = &publicKey
 			e.IntFieldEncryptedAsStringField[agg.field] = true
+
+			switch aggType := *(agg.funcOp); aggType {
+			case "avg":
+				e.EncryptMethods["count"] = defaultEncrypt
+				e.DecryptMethods["sum"] = homDecryptFunc
+				e.DecryptMethods["count"] = defaultEncrypt
+				e.PublicKeys["sum"] = &publicKey
+				e.IntFieldEncryptedAsStringField["sum"] = true
+			}
 		}
 	}
 	return nil, e

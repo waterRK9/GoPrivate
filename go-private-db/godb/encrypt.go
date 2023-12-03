@@ -2,7 +2,6 @@ package godb
 
 import (
 	"bytes"
-	b64 "encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"strconv"
@@ -167,19 +166,6 @@ func newDetDecryptionFunc(key []byte) func(v any) (any, error) {
 	}
 }
 
-func strToBytes(str string) ([]byte, error) {
-	b, err := b64.StdEncoding.DecodeString(str)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func bytesToStr(b []byte) string {
-	str := b64.StdEncoding.EncodeToString(b)
-	return str
-}
-
 func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (any, error), homo.Pubkey) {
 	pall, err := paillier.NewPaillier(keysize)
 	if err != nil {
@@ -200,8 +186,7 @@ func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (a
 			if err != nil {
 				return nil, err
 			} else {
-				str := b64.StdEncoding.EncodeToString([]byte(result))
-				return str, nil
+				return string(result), nil
 			}
 		} else {
 			panic("cannot encrypt unsupported type!")
@@ -209,21 +194,21 @@ func newHomEncryptionFunc(keysize int) (func(v any) (any, error), func(v any) (a
 	}
 
 	decrypt := func(v any) (any, error) {
-		str, err := b64.StdEncoding.DecodeString(v.(string))
+		b := []byte(v.(string))
 		if err != nil {
 			return nil, err
 		}
 
-		result, err := pall.Decrypt(str)
+		d, err := pall.Decrypt(b)
 
 		if err != nil {
 			return nil, err
 		}
 
-		var num int64
-		buf := bytes.NewBuffer(result)
-		binary.Read(buf, binary.BigEndian, &num)
-		return num, nil
+		dByte := make([]byte, 8)
+		copy(dByte[8-len(d):], d)
+		dInt := binary.BigEndian.Uint64(dByte)
+		return int64(dInt), nil
 	}
 
 	return encrypt, decrypt, pall.GetPubKey()

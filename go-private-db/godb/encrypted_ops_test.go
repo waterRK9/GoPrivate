@@ -31,6 +31,7 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t"}}
 	aa.Init("avg", &expr, stringAggGetter, *e.PublicKeys["age"])
 	agg := NewEncryptedAggregator([]EncryptedAggState{&aa}, encryptedHf)
+
 	iter, err := agg.Iterator(tid)
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -45,15 +46,15 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	if tup == nil {
 		t.Fatalf("Expected non-null tuple")
 	}
-	sum := tup.Fields[0].(StringField).Value
-	println(sum)
 
 	result, err := e.encryptOrDecryptTuple(tup, false)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	println(result)
-	// if sum != 1024 {
-	// 	t.Errorf("unexpected sum")
-	// }
+
+	sum := result.Fields[0].(IntField).Value
+	count := result.Fields[1].(IntField).Value
+	if sum != 395 || count != 10 {
+		t.Errorf("unexpected sum or count")
+	}
 }

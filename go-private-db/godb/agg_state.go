@@ -154,7 +154,7 @@ type EncryptedAvgAggState[T string] struct {
 	alias     string
 	expr      Expr
 	getter    func(DBValue) any
-	count     T
+	count     int64
 	sum       string
 	publicKey homo.Pubkey
 }
@@ -180,10 +180,10 @@ func (a *EncryptedAvgAggState[T]) Init(alias string, expr Expr, getter func(DBVa
 	a.alias = alias
 	a.expr = expr
 	a.getter = getter
-	a.count = "0"
+	a.count = 0
 
 	z, _ := publicKey.Encrypt(make([]byte, 0))
-	a.sum = bytesToStr(z)
+	a.sum = string(z)
 	a.publicKey = publicKey
 	return nil
 }
@@ -196,11 +196,11 @@ func (a *AvgAggState[T]) AddTuple(t *Tuple) {
 
 func (a *EncryptedAvgAggState[T]) AddTuple(t *Tuple) {
 	v, _ := a.expr.EvalExpr(t)
-	b1, _ := strToBytes(a.sum)
-	b2, _ := strToBytes(a.getter(v).(string))
+	b1 := []byte(a.sum)
+	b2 := []byte(a.getter(v).(string))
 	result, _ := a.publicKey.Add(b1, b2)
-	a.sum = bytesToStr(result)
-	// a.count++
+	a.sum = string(result)
+	a.count++
 }
 
 func (a *AvgAggState[T]) GetTupleDesc() *TupleDesc {
@@ -212,8 +212,9 @@ func (a *AvgAggState[T]) GetTupleDesc() *TupleDesc {
 }
 
 func (a *EncryptedAvgAggState[T]) GetTupleDesc() *TupleDesc {
-	ft := FieldType{a.alias, "", StringType}
-	fts := []FieldType{ft}
+	ft1 := FieldType{"sum", "", StringType}
+	ft2 := FieldType{"count", "", IntType}
+	fts := []FieldType{ft1, ft2}
 	td := TupleDesc{}
 	td.Fields = fts
 	return &td
@@ -229,9 +230,9 @@ func (a *AvgAggState[T]) Finalize() *Tuple {
 
 func (a *EncryptedAvgAggState[T]) Finalize() *Tuple {
 	td := a.GetTupleDesc()
-	// f := IntField{int64(a.sum / a.count)}
-	f := StringField{a.sum}
-	fs := []DBValue{f}
+	f1 := StringField{a.sum}
+	f2 := IntField{a.count}
+	fs := []DBValue{f1, f2}
 	t := Tuple{*td, fs, nil}
 	return &t
 }
