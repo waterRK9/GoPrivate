@@ -205,3 +205,65 @@ func TestBigJoinOptional(t *testing.T) {
 	}
 
 }
+
+func TestVJoin(t *testing.T) {
+	td, t1, t2, hf, bp, tid := makeTestVars()
+	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t2, tid)
+	hf.insertTuple(&t2, tid)
+
+	os.Remove(JoinTestFile)
+	hf2, _ := NewHeapFile(JoinTestFile, &td, bp)
+	hf2.insertTuple(&t1, tid)
+	hf2.insertTuple(&t2, tid)
+	hf2.insertTuple(&t2, tid)
+
+	join, err := NewVJoin(hf, hf2, 100)
+
+	iter_test, _ := hf2.Iterator(tid)
+	for {
+		t, _ := iter_test()
+		if t == nil {
+			break
+		}
+	}
+	if err != nil {
+		t.Errorf("unexpected error initializing join")
+		return
+	}
+
+	// get join iterator
+	iter, err := join.Iterator(tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("iter was nil")
+	}
+
+	// total number of output tuples should equal {T1} + {T2}
+	// with quantity of each input tuple
+	count := 0
+	countT1 := 0
+	countT2 := 0
+	for {
+		t, _ := iter()
+		if t == nil {
+			break
+		} else if t.equals(&t1) {
+			countT1++
+		} else if t.equals(&t2) {
+			countT2++
+		}
+		count++
+	}
+	if count != 6 {
+		t.Errorf("unexpected number of join results (%d, expected 6)", count)
+	}
+	if countT1 != 2 {
+		t.Errorf("unexpected number of join results (%d, expected 2)", countT1)
+	}
+	if countT2 != 4 {
+		t.Errorf("unexpected number of join results (%d, expected 4)", countT2)
+	}
+}
