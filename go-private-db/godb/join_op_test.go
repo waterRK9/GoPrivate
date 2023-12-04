@@ -206,19 +206,125 @@ func TestBigJoinOptional(t *testing.T) {
 
 }
 
-func TestVJoin(t *testing.T) {
+func TestVericalJoinOneTables(t *testing.T) {
+	_, t1, t2, hf, _, tid := makeTestVars()
+	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t2, tid)
+	hf.insertTuple(&t2, tid)
+
+	join, err := NewVerticalJoin([]Operator{hf}, 100)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// get join iterator
+	iter, err := join.Iterator(tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("iter was nil")
+	}
+
+	// total number of output tuples should equal {T1} + {T2}
+	// with quantity of each input tuple
+	count := 0
+	countT1 := 0
+	countT2 := 0
+	for {
+		t, _ := iter()
+		if t == nil {
+			break
+		} else if t.equals(&t1) {
+			countT1++
+		} else if t.equals(&t2) {
+			countT2++
+		}
+		count++
+	}
+	if count != 3 {
+		t.Errorf("unexpected number of join results (%d, expected 6)", count)
+	}
+	if countT1 != 1 {
+		t.Errorf("unexpected number of join results (%d, expected 2)", countT1)
+	}
+	if countT2 != 2 {
+		t.Errorf("unexpected number of join results (%d, expected 4)", countT2)
+	}
+}
+
+func TestVericalJoinTwoTables(t *testing.T) {
 	td, t1, t2, hf, bp, tid := makeTestVars()
 	hf.insertTuple(&t1, tid)
 	hf.insertTuple(&t2, tid)
 	hf.insertTuple(&t2, tid)
 
-	os.Remove(JoinTestFile)
-	hf2, _ := NewHeapFile(JoinTestFile, &td, bp)
+	os.Remove("test2.dat")
+	hf2, _ := NewHeapFile("test2.dat", &td, bp)
 	hf2.insertTuple(&t1, tid)
 	hf2.insertTuple(&t2, tid)
 	hf2.insertTuple(&t2, tid)
 
-	join, err := NewVJoin(hf, hf2, 100)
+	join, err := NewVerticalJoin([]Operator{hf, hf2}, 100)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// get join iterator
+	iter, err := join.Iterator(tid)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("iter was nil")
+	}
+
+	// total number of output tuples should equal {T1} + {T2}
+	// with quantity of each input tuple
+	count := 0
+	countT1 := 0
+	countT2 := 0
+	for {
+		t, _ := iter()
+		if t == nil {
+			break
+		} else if t.equals(&t1) {
+			countT1++
+		} else if t.equals(&t2) {
+			countT2++
+		}
+		count++
+	}
+	if count != 6 {
+		t.Errorf("unexpected number of join results (%d, expected 6)", count)
+	}
+	if countT1 != 2 {
+		t.Errorf("unexpected number of join results (%d, expected 2)", countT1)
+	}
+	if countT2 != 4 {
+		t.Errorf("unexpected number of join results (%d, expected 4)", countT2)
+	}
+}
+
+func TestVericalJoinThreeTables(t *testing.T) {
+	td, t1, t2, hf, bp, tid := makeTestVars()
+	hf.insertTuple(&t1, tid)
+	hf.insertTuple(&t2, tid)
+	hf.insertTuple(&t2, tid)
+
+	os.Remove("test2.dat")
+	hf2, _ := NewHeapFile("test2.dat", &td, bp)
+	hf2.insertTuple(&t1, tid)
+	hf2.insertTuple(&t2, tid)
+	hf2.insertTuple(&t2, tid)
+
+	os.Remove("test3.dat")
+	hf3, _ := NewHeapFile("test3.dat", &td, bp)
+	hf3.insertTuple(&t1, tid)
+	hf3.insertTuple(&t1, tid)
+	hf3.insertTuple(&t2, tid)
+
+	join, err := NewVerticalJoin([]Operator{hf, hf2, hf3}, 100)
 
 	iter_test, _ := hf2.Iterator(tid)
 	for {
@@ -257,13 +363,13 @@ func TestVJoin(t *testing.T) {
 		}
 		count++
 	}
-	if count != 6 {
-		t.Errorf("unexpected number of join results (%d, expected 6)", count)
+	if count != 9 {
+		t.Errorf("unexpected number of join results (%d, expected 9)", count)
 	}
-	if countT1 != 2 {
-		t.Errorf("unexpected number of join results (%d, expected 2)", countT1)
+	if countT1 != 4 {
+		t.Errorf("unexpected number of join results (%d, expected 3)", countT1)
 	}
-	if countT2 != 4 {
-		t.Errorf("unexpected number of join results (%d, expected 4)", countT2)
+	if countT2 != 5 {
+		t.Errorf("unexpected number of join results (%d, expected 6)", countT2)
 	}
 }
