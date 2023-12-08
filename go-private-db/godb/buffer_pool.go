@@ -167,7 +167,8 @@ func (bp *BufferPool) Evict() error {
 		index++
 	}
 	if index == bp.NumPages {
-		return errors.New("All pages are dirty")
+		bp.FlushAllPages()
+		index = 0
 	}
 	pageKey := bp.LRUQueue[index]
 	page := bp.Map[pageKey]
