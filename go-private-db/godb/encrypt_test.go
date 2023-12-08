@@ -66,7 +66,7 @@ func getDummyEncryptionScheme() EncryptionScheme {
 	}
 }
 
-func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName string) {
+func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName string, sql string) *HeapFile {
 	// assumes there are no .dat files with the below name
 	tempFileName := inputFilename + ".dat"
 	os.Remove(tempFileName)
@@ -95,7 +95,6 @@ func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName stri
 	}
 
 	// Generating encrypted file
-	sql := "select avg(id) from t"
 	err, e := translateQuery(sql)
 	if err != nil {
 		panic(err.Error())
@@ -109,6 +108,7 @@ func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName stri
 
 	// Emptying bufferpool
 	encryptedHf.bufPool.FlushAllPages()
+	return encryptedHf
 }
 
 // to encrypt a csv file: modify the file name variables, then run this test
@@ -125,10 +125,11 @@ func TestRunCSVToEncryptedDat(t *testing.T) {
 		{Fname: "last_name", Ftype: StringType},
 		{Fname: "phone_number", Ftype: StringType},
 		{Fname: "gender", Ftype: StringType},
+		{Fname: "age", Ftype: IntType},
 		{Fname: "diagnosis_code", Ftype: StringType},
 	}}
 
-	CSVToEncryptedDat(td, csvFileName, encryptedDatFileName)
+	CSVToEncryptedDat(td, csvFileName, encryptedDatFileName, "select avg(age) from t")
 }
 
 func TestTupleEncryption(t *testing.T) {
