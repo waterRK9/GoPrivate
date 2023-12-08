@@ -47,28 +47,34 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 		plan, _ := parseStatement(c, stmt)
 		aggs := plan.aggs
 		for _, agg := range aggs {
-			e.EncryptMethods[agg.field] = homEncryptFunc
-			e.DecryptMethods[agg.field] = homDecryptFunc
-			e.PublicKeys[agg.field] = &publicKey
-			e.IntFieldEncryptedAsStringField[agg.field] = true
-
 			switch aggType := *(agg.funcOp); aggType {
 			case "avg":
+				e.EncryptMethods[agg.field] = homEncryptFunc
+				e.DecryptMethods[agg.field] = homDecryptFunc
+				e.PublicKeys[agg.field] = &publicKey
 				e.EncryptMethods["count"] = defaultEncrypt
 				e.DecryptMethods["sum"] = homDecryptFunc
 				e.DecryptMethods["count"] = defaultEncrypt
 				e.PublicKeys["sum"] = &publicKey
 				e.IntFieldEncryptedAsStringField["sum"] = true
+				e.IntFieldEncryptedAsStringField[agg.field] = true
 
 			case "sum":
+				e.EncryptMethods[agg.field] = homEncryptFunc
+				e.DecryptMethods[agg.field] = homDecryptFunc
+				e.PublicKeys[agg.field] = &publicKey
 				e.DecryptMethods["sum"] = homDecryptFunc
 				e.PublicKeys["sum"] = &publicKey
 				e.IntFieldEncryptedAsStringField["sum"] = true
+				e.IntFieldEncryptedAsStringField[agg.field] = true
 
 			case "count":
+				e.EncryptMethods[agg.field] = detEncryptFunc
+				e.DecryptMethods[agg.field] = detDecryptFunc
+				e.PublicKeys[agg.field] = &publicKey
 				e.EncryptMethods["count"] = defaultEncrypt
 				e.DecryptMethods["count"] = defaultEncrypt
-				e.PublicKeys["sum"] = &publicKey
+				e.PublicKeys["count"] = &publicKey
 			}
 		}
 	}
