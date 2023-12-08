@@ -66,11 +66,55 @@ func getDummyEncryptionScheme() EncryptionScheme {
 	}
 }
 
+func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName string) {
+	// assumes there are no .dat files with the below name
+	tempFileName := inputFilename + ".dat"
+	os.Remove(tempFileName)
+	defer os.Remove(tempFileName)
+
+	// Make heapfile for csv file
+	bp := NewBufferPool(10)
+	os.Remove(tempFileName)
+	hf, err := NewHeapFile(tempFileName, &desc, bp)
+	if err != nil {
+		print("ERROR MAKING TEST VARS, BLARGH")
+		panic(err.Error())
+	}
+
+	tid := NewTID()
+	bp.BeginTransaction(tid)
+
+	// Reading from CSV
+	f, err := os.Open(inputFilename)
+	if err != nil {
+		panic("GenerateCSVToEncryptedDat: couldn't open csv file")
+	}
+	err = hf.LoadFromCSV(f, true, ",", false)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Generating encrypted file
+	sql := "select avg(id) from t"
+	err, e := translateQuery(sql)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	bp.BeginTransaction(tid)
+	encryptedHf, err := e.encryptOrDecrypt(hf, resultFileName, true, tid)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Emptying bufferpool
+	encryptedHf.bufPool.FlushAllPages()
+}
+
 // to encrypt a csv file: modify the file name variables, then run this test
-func TestCSVToEncryptedDat(t *testing.T) {
+func TestRunCSVToEncryptedDat(t *testing.T) {
 	// File Name Variables
 	csvFileName := "encryptedresults/298_mock_patient_data.csv"
-	datFileName := "encryptedresults/298_mock_patient_data.dat"
 	encryptedDatFileName := "encryptedresults/298_encrypted_mock_patient_data.dat"
 
 	// Making Test Variables
@@ -84,44 +128,7 @@ func TestCSVToEncryptedDat(t *testing.T) {
 		{Fname: "diagnosis_code", Ftype: StringType},
 	}}
 
-	bp := NewBufferPool(10)
-	os.Remove(datFileName)
-	hf, err := NewHeapFile(datFileName, &td, bp)
-	if err != nil {
-		print("ERROR MAKING TEST VARS, BLARGH")
-		panic(err)
-	}
-
-	tid := NewTID()
-	bp.BeginTransaction(tid)
-
-	// Reading from CSV
-	f, err := os.Open(csvFileName)
-	if err != nil {
-		t.Errorf("Couldn't open csv file!")
-		return
-	}
-	err = hf.LoadFromCSV(f, true, ",", false)
-	if err != nil {
-		t.Fatalf("Load failed, %s", err)
-	}
-
-	// Generating encrypted file
-	sql := "select avg(id) from t"
-	err, e := translateQuery(sql)
-	if err != nil {
-		t.Errorf("%s", err.Error())
-		return
-	}
-
-	bp.BeginTransaction(tid)
-	encryptedHf, err := e.encryptOrDecrypt(hf, encryptedDatFileName, true, tid)
-	if err != nil {
-		t.Errorf("%s", err.Error())
-		return
-	}
-
-	encryptedHf.bufPool.FlushAllPages()
+	CSVToEncryptedDat(td, csvFileName, encryptedDatFileName)
 }
 
 func TestTupleEncryption(t *testing.T) {
