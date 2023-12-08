@@ -87,7 +87,7 @@ func (e *EncryptionScheme) encryptOrDecrypt(hf *HeapFile, toFile string, encrypt
 		}
 	}
 
-	_hf, err := NewHeapFile(toFile, hf.desc, bp)
+	_hf, err := NewHeapFile(toFile, newDesc, bp)
 	if err != nil {
 		return nil, err
 	}

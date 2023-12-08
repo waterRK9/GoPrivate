@@ -66,23 +66,22 @@ func getDummyEncryptionScheme() EncryptionScheme {
 	}
 }
 
-func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName string, sql string) *HeapFile {
+func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName string, sql string) (*HeapFile, EncryptionScheme) {
 	// assumes there are no .dat files with the below name
 	tempFileName := inputFilename + ".dat"
 	os.Remove(tempFileName)
+	os.Remove(resultFileName)
 	defer os.Remove(tempFileName)
 
 	// Make heapfile for csv file
 	bp := NewBufferPool(10)
-	os.Remove(tempFileName)
 	hf, err := NewHeapFile(tempFileName, &desc, bp)
 	if err != nil {
 		print("ERROR MAKING TEST VARS, BLARGH")
 		panic(err.Error())
 	}
 
-	tid := NewTID()
-	bp.BeginTransaction(tid)
+	//bp.BeginTransaction(nil)
 
 	// Reading from CSV
 	f, err := os.Open(inputFilename)
@@ -95,20 +94,20 @@ func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName stri
 	}
 
 	// Generating encrypted file
+	os.Remove(resultFileName)
 	err, e := translateQuery(sql)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	bp.BeginTransaction(tid)
-	encryptedHf, err := e.encryptOrDecrypt(hf, resultFileName, true, tid)
+	encryptedHf, err := e.encryptOrDecrypt(hf, resultFileName, true, nil)
 	if err != nil {
 		panic(err.Error())
 	}
 
 	// Emptying bufferpool
 	encryptedHf.bufPool.FlushAllPages()
-	return encryptedHf
+	return encryptedHf, e
 }
 
 // to encrypt a csv file: modify the file name variables, then run this test
