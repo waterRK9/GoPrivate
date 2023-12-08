@@ -201,7 +201,7 @@ func (a *SumAggState[T]) GetTupleDesc() *TupleDesc {
 }
 
 func (a *EncryptedSumAggState[T]) GetTupleDesc() *TupleDesc {
-	ft := FieldType{a.alias, "", StringType}
+	ft := FieldType{"sum", "", StringType}
 	fts := []FieldType{ft}
 	td := TupleDesc{}
 	td.Fields = fts

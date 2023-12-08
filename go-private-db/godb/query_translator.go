@@ -59,6 +59,16 @@ func translateQuery(sql string) (error, EncryptionScheme) {
 				e.DecryptMethods["count"] = defaultEncrypt
 				e.PublicKeys["sum"] = &publicKey
 				e.IntFieldEncryptedAsStringField["sum"] = true
+
+			case "sum":
+				e.DecryptMethods["sum"] = homDecryptFunc
+				e.PublicKeys["sum"] = &publicKey
+				e.IntFieldEncryptedAsStringField["sum"] = true
+
+			case "count":
+				e.EncryptMethods["count"] = defaultEncrypt
+				e.DecryptMethods["count"] = defaultEncrypt
+				e.PublicKeys["sum"] = &publicKey
 			}
 		}
 	}
