@@ -119,7 +119,7 @@ func TestRunCSVToEncryptedDat(t *testing.T) {
 
 	// Making Test Variables
 	var td = TupleDesc{Fields: []FieldType{
-		{Fname: "id", Ftype: IntType},
+		{Fname: "id", Ftype: StringType},
 		{Fname: "ssn", Ftype: StringType},
 		{Fname: "first_name", Ftype: StringType},
 		{Fname: "last_name", Ftype: StringType},
