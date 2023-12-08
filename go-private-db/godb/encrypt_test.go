@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/getamis/alice/crypto/homo/paillier"
@@ -63,6 +64,64 @@ func getDummyEncryptionScheme() EncryptionScheme {
 		DefaultDecrypt: defaultEncrypt,
 		PaillierMap:    paillierMap,
 	}
+}
+
+// to encrypt a csv file: modify the file name variables, then run this test
+func TestCSVToEncryptedDat(t *testing.T) {
+	// File Name Variables
+	csvFileName := "encryptedresults/298_mock_patient_data.csv"
+	datFileName := "encryptedresults/298_mock_patient_data.dat"
+	encryptedDatFileName := "encryptedresults/298_encrypted_mock_patient_data.dat"
+
+	// Making Test Variables
+	var td = TupleDesc{Fields: []FieldType{
+		{Fname: "id", Ftype: IntType},
+		{Fname: "ssn", Ftype: StringType},
+		{Fname: "first_name", Ftype: StringType},
+		{Fname: "last_name", Ftype: StringType},
+		{Fname: "phone_number", Ftype: StringType},
+		{Fname: "gender", Ftype: StringType},
+		{Fname: "diagnosis_code", Ftype: StringType},
+	}}
+
+	bp := NewBufferPool(10)
+	os.Remove(datFileName)
+	hf, err := NewHeapFile(datFileName, &td, bp)
+	if err != nil {
+		print("ERROR MAKING TEST VARS, BLARGH")
+		panic(err)
+	}
+
+	tid := NewTID()
+	bp.BeginTransaction(tid)
+
+	// Reading from CSV
+	f, err := os.Open(csvFileName)
+	if err != nil {
+		t.Errorf("Couldn't open csv file!")
+		return
+	}
+	err = hf.LoadFromCSV(f, true, ",", false)
+	if err != nil {
+		t.Fatalf("Load failed, %s", err)
+	}
+
+	// Generating encrypted file
+	sql := "select avg(id) from t"
+	err, e := translateQuery(sql)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+		return
+	}
+
+	bp.BeginTransaction(tid)
+	encryptedHf, err := e.encryptOrDecrypt(hf, encryptedDatFileName, true, tid)
+	if err != nil {
+		t.Errorf("%s", err.Error())
+		return
+	}
+
+	encryptedHf.bufPool.FlushAllPages()
 }
 
 func TestTupleEncryption(t *testing.T) {
