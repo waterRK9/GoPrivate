@@ -82,7 +82,7 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	//encryptedHf.bufPool.BeginTransaction(nil)
 
 	aa := EncryptedAvgAggState[string]{}
-	expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t"}}
+	expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t", Ftype: StringType}}
 	aa.Init("avg", &expr, stringAggGetter, *e.PublicKeys["age"])
 	agg := NewEncryptedAggregator([]EncryptedAggState{&aa}, encryptedHf)
 
@@ -109,6 +109,61 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	sum := result.Fields[0].(IntField).Value
 	count := result.Fields[1].(IntField).Value
 	if sum != 395 || count != 10 {
+		t.Errorf("unexpected sum or count")
+	}
+}
+
+func TestEncryptedCountAgg(t *testing.T) {
+	sql := "select count(age) from t"
+
+	var td = TupleDesc{Fields: []FieldType{
+		{Fname: "id", Ftype: StringType},
+		{Fname: "ssn", Ftype: StringType},
+		{Fname: "first_name", Ftype: StringType},
+		{Fname: "last_name", Ftype: StringType},
+		{Fname: "phone_number", Ftype: StringType},
+		{Fname: "gender", Ftype: StringType},
+		{Fname: "age", Ftype: IntType},
+		{Fname: "diagnosis_code", Ftype: StringType},
+	}}
+
+	inputFileName := "encryptedresults/298_mock_patient_data.csv"
+	resultFileName := "encryptedresults/298_encrypted_mock_patient_data.dat"
+
+	encryptedHf, e := CSVToEncryptedDat(td, inputFileName, resultFileName, sql)
+
+	//tid := NewTID()
+	//encryptedHf.bufPool.BeginTransaction(nil)
+
+	aa := EncryptedCountAggState{}
+	expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t", Ftype: StringType}}
+	aa.Init("count", &expr, stringAggGetter, *e.PublicKeys["age"])
+	agg := NewEncryptedAggregator([]EncryptedAggState{&aa}, encryptedHf)
+
+	iter, err := agg.Iterator(nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("Iterator was nil")
+	}
+	tup, err := iter()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if tup == nil {
+		t.Fatalf("Expected non-null tuple")
+	}
+
+	result, err := e.encryptOrDecryptTuple(tup, false)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	print("yes")
+	//sum := result.Fields[0].(IntField).Value
+	count := result.Fields[0].(IntField).Value
+	if count != 298 {
 		t.Errorf("unexpected sum or count")
 	}
 }
