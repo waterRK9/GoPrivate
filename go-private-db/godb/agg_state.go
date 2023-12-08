@@ -57,8 +57,19 @@ type CountAggState struct {
 	count int
 }
 
+type EncryptedCountAggState struct {
+	alias     string
+	expr      Expr
+	count     int64
+	publicKey homo.Pubkey
+}
+
 func (a *CountAggState) Copy() AggState {
 	return &CountAggState{a.alias, a.expr, a.count}
+}
+
+func (a *EncryptedCountAggState) Copy() EncryptedAggState {
+	return &EncryptedCountAggState{a.alias, a.expr, a.count, a.publicKey}
 }
 
 func (a *CountAggState) Init(alias string, expr Expr, getter func(DBValue) any) error {
@@ -68,11 +79,31 @@ func (a *CountAggState) Init(alias string, expr Expr, getter func(DBValue) any) 
 	return nil
 }
 
+func (a *EncryptedCountAggState) Init(alias string, expr Expr, getter func(DBValue) any, publicKey homo.Pubkey) error {
+	a.count = 0
+	a.expr = expr
+	a.alias = alias
+	a.publicKey = publicKey
+	return nil
+}
+
 func (a *CountAggState) AddTuple(t *Tuple) {
 	a.count++
 }
 
+func (a *EncryptedCountAggState) AddTuple(t *Tuple) {
+	a.count++
+}
+
 func (a *CountAggState) Finalize() *Tuple {
+	td := a.GetTupleDesc()
+	f := IntField{int64(a.count)}
+	fs := []DBValue{f}
+	t := Tuple{*td, fs, nil}
+	return &t
+}
+
+func (a *EncryptedCountAggState) Finalize() *Tuple {
 	td := a.GetTupleDesc()
 	f := IntField{int64(a.count)}
 	fs := []DBValue{f}
@@ -88,6 +119,14 @@ func (a *CountAggState) GetTupleDesc() *TupleDesc {
 	return &td
 }
 
+func (a *EncryptedCountAggState) GetTupleDesc() *TupleDesc {
+	ft := FieldType{a.alias, "", IntType}
+	fts := []FieldType{ft}
+	td := TupleDesc{}
+	td.Fields = fts
+	return &td
+}
+
 // Implements the aggregation state for SUM
 type SumAggState[T Number] struct {
 	alias  string
@@ -96,8 +135,20 @@ type SumAggState[T Number] struct {
 	sum    T
 }
 
+type EncryptedSumAggState[T string] struct {
+	alias     string
+	expr      Expr
+	getter    func(DBValue) any
+	sum       string
+	publicKey homo.Pubkey
+}
+
 func (a *SumAggState[T]) Copy() AggState {
 	return &SumAggState[T]{a.alias, a.expr, a.getter, a.sum}
+}
+
+func (a *EncryptedSumAggState[T]) Copy() EncryptedAggState {
+	return &EncryptedSumAggState[T]{a.alias, a.expr, a.getter, a.sum, a.publicKey}
 }
 
 func intAggGetter(v DBValue) any {
@@ -118,9 +169,27 @@ func (a *SumAggState[T]) Init(alias string, expr Expr, getter func(DBValue) any)
 	return nil
 }
 
+func (a *EncryptedSumAggState[T]) Init(alias string, expr Expr, getter func(DBValue) any, publicKey homo.Pubkey) error {
+	z, _ := publicKey.Encrypt(make([]byte, 0))
+	a.sum = string(z)
+	a.expr = expr
+	a.alias = alias
+	a.getter = getter
+	a.publicKey = publicKey
+	return nil
+}
+
 func (a *SumAggState[T]) AddTuple(t *Tuple) {
 	v, _ := a.expr.EvalExpr(t)
 	a.sum += a.getter(v).(T)
+}
+
+func (a *EncryptedSumAggState[T]) AddTuple(t *Tuple) {
+	v, _ := a.expr.EvalExpr(t)
+	b1 := []byte(a.sum)
+	b2 := []byte(a.getter(v).(string))
+	result, _ := a.publicKey.Add(b1, b2)
+	a.sum = string(result)
 }
 
 func (a *SumAggState[T]) GetTupleDesc() *TupleDesc {
@@ -131,9 +200,25 @@ func (a *SumAggState[T]) GetTupleDesc() *TupleDesc {
 	return &td
 }
 
+func (a *EncryptedSumAggState[T]) GetTupleDesc() *TupleDesc {
+	ft := FieldType{"sum", "", StringType}
+	fts := []FieldType{ft}
+	td := TupleDesc{}
+	td.Fields = fts
+	return &td
+}
+
 func (a *SumAggState[T]) Finalize() *Tuple {
 	td := a.GetTupleDesc()
 	f := IntField{int64(a.sum)}
+	fs := []DBValue{f}
+	t := Tuple{*td, fs, nil}
+	return &t
+}
+
+func (a *EncryptedSumAggState[T]) Finalize() *Tuple {
+	td := a.GetTupleDesc()
+	f := StringField{a.sum}
 	fs := []DBValue{f}
 	t := Tuple{*td, fs, nil}
 	return &t
