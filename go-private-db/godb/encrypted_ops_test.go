@@ -114,7 +114,7 @@ func TestEncryptedAvgAgg(t *testing.T) {
 }
 
 func TestEncryptedCountAgg(t *testing.T) {
-	sql := "select count(age) from t"
+	sql := "select count(ssn) from t"
 
 	var td = TupleDesc{Fields: []FieldType{
 		{Fname: "id", Ftype: StringType},
@@ -123,7 +123,7 @@ func TestEncryptedCountAgg(t *testing.T) {
 		{Fname: "last_name", Ftype: StringType},
 		{Fname: "phone_number", Ftype: StringType},
 		{Fname: "gender", Ftype: StringType},
-		{Fname: "age", Ftype: IntType},
+		{Fname: "age", Ftype: StringType},
 		{Fname: "diagnosis_code", Ftype: StringType},
 	}}
 
@@ -136,8 +136,8 @@ func TestEncryptedCountAgg(t *testing.T) {
 	//encryptedHf.bufPool.BeginTransaction(nil)
 
 	aa := EncryptedCountAggState{}
-	expr := FieldExpr{FieldType{Fname: "age", TableQualifier: "t", Ftype: StringType}}
-	aa.Init("count", &expr, stringAggGetter, *e.PublicKeys["age"])
+	expr := FieldExpr{FieldType{Fname: "ssn", TableQualifier: "t", Ftype: StringType}}
+	aa.Init("count", &expr, stringAggGetter, *e.PublicKeys["ssn"])
 	agg := NewEncryptedAggregator([]EncryptedAggState{&aa}, encryptedHf)
 
 	iter, err := agg.Iterator(nil)
