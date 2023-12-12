@@ -110,6 +110,46 @@ func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName stri
 	return encryptedHf, e
 }
 
+func CSVToEncryptedDatGivenE(desc TupleDesc, inputFilename string, resultFileName string, e EncryptionScheme) *HeapFile {
+	// assumes there are no .dat files with the below name
+	tempFileName := inputFilename + ".dat"
+	os.Remove(tempFileName)
+	os.Remove(resultFileName)
+	defer os.Remove(tempFileName)
+
+	// Make heapfile for csv file
+	bp := NewBufferPool(10)
+	hf, err := NewHeapFile(tempFileName, &desc, bp)
+	if err != nil {
+		print("ERROR MAKING TEST VARS, BLARGH")
+		panic(err.Error())
+	}
+
+	//bp.BeginTransaction(nil)
+
+	// Reading from CSV
+	f, err := os.Open(inputFilename)
+	if err != nil {
+		panic("GenerateCSVToEncryptedDat: couldn't open csv file")
+	}
+	err = hf.LoadFromCSV(f, true, ",", false)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Generating encrypted file
+	os.Remove(resultFileName)
+
+	encryptedHf, err := e.encryptOrDecrypt(hf, resultFileName, true, nil)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	// Emptying bufferpool
+	encryptedHf.bufPool.FlushAllPages()
+	return encryptedHf
+}
+
 // to encrypt a csv file: modify the file name variables, then run this test
 func TestRunCSVToEncryptedDat(t *testing.T) {
 	// File Name Variables
