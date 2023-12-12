@@ -1,6 +1,10 @@
 package godb
 
 import (
+	"bytes"
+	"encoding/binary"
+	"fmt"
+
 	"github.com/getamis/alice/crypto/homo"
 	"golang.org/x/exp/constraints"
 )
@@ -267,7 +271,15 @@ func (a *EncryptedAvgAggState[T]) Init(alias string, expr Expr, getter func(DBVa
 	a.getter = getter
 	a.count = 0
 
-	z, _ := publicKey.Encrypt(make([]byte, 0))
+	// initialize an empty []byte with value of 0
+	buf := new(bytes.Buffer)
+	err := binary.Write(buf, binary.BigEndian, uint64(0))
+	if err != nil {
+		fmt.Println("binary.Write failed:", err)
+	}
+	byts := buf.Bytes()
+	z, _ := publicKey.Encrypt(byts)
+
 	a.sum = string(z)
 	a.publicKey = publicKey
 	return nil

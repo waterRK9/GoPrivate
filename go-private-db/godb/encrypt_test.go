@@ -128,7 +128,28 @@ func TestRunCSVToEncryptedDat(t *testing.T) {
 		{Fname: "diagnosis_code", Ftype: StringType},
 	}}
 
-	CSVToEncryptedDat(td, csvFileName, encryptedDatFileName, "select avg(age) from t")
+	// Creating Encrypted .dat file
+	encryptedHf, e := CSVToEncryptedDat(td, csvFileName, encryptedDatFileName, "select avg(age) from t")
+
+	// UNDER TESTING: attempt to iterate through the encrypted tuples, and decrypt and print out each of the tuples
+	iter, err := encryptedHf.Iterator(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	for {
+		tuple, err := iter()
+		if err != nil {
+			panic(err)
+		} else if tuple != nil {
+			decryptedTuple, err := e.encryptOrDecryptTuple(tuple, false)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Println(decryptedTuple)
+		}
+	}
+
 }
 
 func TestTupleEncryption(t *testing.T) {
