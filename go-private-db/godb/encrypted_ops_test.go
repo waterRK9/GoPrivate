@@ -108,9 +108,9 @@ func TestEncryptedAvgAgg(t *testing.T) {
 	count := result.Fields[1].(IntField).Value
 
 	fmt.Println(sum, count)
-	// if sum != 0 || count != 0 {
-	// 	t.Errorf("unexpected sum or count")
-	// }
+	if sum != 1702 || count != 27 {
+		t.Errorf("unexpected sum or count")
+	}
 }
 
 func TestEncryptedCountAgg(t *testing.T) {
