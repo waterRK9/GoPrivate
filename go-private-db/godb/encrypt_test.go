@@ -85,6 +85,7 @@ func CSVToEncryptedDat(desc TupleDesc, inputFilename string, resultFileName stri
 
 	// Reading from CSV
 	f, err := os.Open(inputFilename)
+	defer f.Close()
 	if err != nil {
 		panic("GenerateCSVToEncryptedDat: couldn't open csv file")
 	}
