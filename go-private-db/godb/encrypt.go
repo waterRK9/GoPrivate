@@ -39,6 +39,12 @@ func (e *EncryptionScheme) getMethod(fname string, encrypt bool) func(v any) (an
 	}
 }
 
+func (e *EncryptionScheme) encryptVal(value string, fname string) (string, error) {
+	method := e.getMethod(fname, true)
+	res, err := method(value)
+	return res.(string), err
+}
+
 func (e *EncryptionScheme) encryptOrDecryptTuple(t *Tuple, encrypt bool) (*Tuple, error) {
 	fields := make([]DBValue, len(t.Fields))
 	for i := 0; i < len(t.Desc.Fields); i++ {
