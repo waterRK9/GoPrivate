@@ -2,10 +2,6 @@ package godb
 
 type VerticalJoin[T comparable] struct {
 	tables []Operator //operators for the inputs tables of the join
-
-	// The maximum number of records of intermediate state that the join should use
-	// (only required for optional exercise)
-	maxBufferSize int
 }
 
 // Return a TupleDescriptor for this join. The descriptor should be identical for all tables if unmodified since instansiation. Else, return nil.
@@ -26,12 +22,12 @@ func (hj *VerticalJoin[T]) Descriptor() *TupleDesc {
 }
 
 // Constructor for a  join of integer expressions
-func NewVerticalJoin(tables []Operator, maxBufferSize int) (*VerticalJoin[int64], error) {
+func NewVerticalJoin(tables []Operator) (*VerticalJoin[int64], error) {
 	if len(tables) <= 0 {
 		return nil, GoDBError{GoDBErrorCode(IllegalOperationError), "Must have at least one table for a vertical join."}
 	}
 
-	return &VerticalJoin[int64]{tables, maxBufferSize}, nil
+	return &VerticalJoin[int64]{tables}, nil
 }
 
 // Join operator implementation.  This function should iterate over the results

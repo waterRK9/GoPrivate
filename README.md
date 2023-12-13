@@ -17,8 +17,7 @@ query in GoPrivate, the following steps should be followed:
    to get the encrypted heap file for that subsequent table. 
 5. Now that each table has been encrypted and put into a heap file, you are ready to run your aggregation
    operation. First, if using multiple tables, join them together using a vertical-join: a vertical join 
-   is initialized using the NewVerticalJoin function, called with a list of the encrypted heap files and
-   the max buffer size. The default for the max buffer size is 100. 
+   is initialized using the NewVerticalJoin function, called with a list of the encrypted heap files. 
 6. Next, to do the aggregation, and encrypted aggregation state should be created. Currently, GoPrivate
    supports 3 aggregation operations: average, for which the corresponding aggregation state is 
    EncryptedAvgAggState; sum, for which the corresponding aggregation state is EncryptedSumAggState, and

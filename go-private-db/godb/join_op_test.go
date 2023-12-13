@@ -212,7 +212,7 @@ func TestVericalJoinOneTables(t *testing.T) {
 	hf.insertTuple(&t2, tid)
 	hf.insertTuple(&t2, tid)
 
-	join, err := NewVerticalJoin([]Operator{hf}, 100)
+	join, err := NewVerticalJoin([]Operator{hf})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -265,7 +265,7 @@ func TestVericalJoinTwoTables(t *testing.T) {
 	hf2.insertTuple(&t2, tid)
 	hf2.insertTuple(&t2, tid)
 
-	join, err := NewVerticalJoin([]Operator{hf, hf2}, 100)
+	join, err := NewVerticalJoin([]Operator{hf, hf2})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -324,7 +324,7 @@ func TestVericalJoinThreeTables(t *testing.T) {
 	hf3.insertTuple(&t1, tid)
 	hf3.insertTuple(&t2, tid)
 
-	join, err := NewVerticalJoin([]Operator{hf, hf2, hf3}, 100)
+	join, err := NewVerticalJoin([]Operator{hf, hf2, hf3})
 
 	iter_test, _ := hf2.Iterator(tid)
 	for {

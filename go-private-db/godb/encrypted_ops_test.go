@@ -120,7 +120,6 @@ func TestAvgAgg(t *testing.T) {
 }
 
 // / Encryped COUNT Test ///
-
 func TestEncryptedCountAgg(t *testing.T) {
 	sql := "select count(ssn) from t"
 
@@ -182,7 +181,6 @@ func TestEncryptedCountAgg(t *testing.T) {
 }
 
 // / Unencryped COUNT Test ///
-
 func TestCountAgg(t *testing.T) {
 	var td = TupleDesc{Fields: []FieldType{
 		{Fname: "id", Ftype: StringType},
@@ -443,7 +441,6 @@ func TestEncryptedAvgAggWhere(t *testing.T) {
 }
 
 // / Encryped COUNT Test with Filter ///
-
 func TestEncryptedCountAggWhere(t *testing.T) {
 	//the query we are trying to execute
 	//"select count(ssn) from t where diagnosis_code = "S61519A" "
@@ -530,7 +527,6 @@ func TestEncryptedCountAggWhere(t *testing.T) {
 }
 
 // / Encryped AVG Test with Vertical Join ///
-
 func TestEncryptedAvgAggVertiJoin(t *testing.T) {
 	sql := "select avg(age) from t"
 
@@ -553,7 +549,7 @@ func TestEncryptedAvgAggVertiJoin(t *testing.T) {
 	encryptedHf1, e := CSVToEncryptedDat(td, inputFileName1, resultFileName1, sql)
 	encryptedHf2 := CSVToEncryptedDatGivenE(td, inputFileName2, resultFileName2, e)
 
-	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2}, 100)
+	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -593,7 +589,6 @@ func TestEncryptedAvgAggVertiJoin(t *testing.T) {
 }
 
 // / Encryped COUNT Test with Vertical Join ///
-
 func TestEncryptedCountAggVertiJoin(t *testing.T) {
 	sql := "select count(ssn) from t"
 
@@ -616,7 +611,7 @@ func TestEncryptedCountAggVertiJoin(t *testing.T) {
 	encryptedHf1, e := CSVToEncryptedDat(td, inputFileName1, resultFileName1, sql)
 	encryptedHf2 := CSVToEncryptedDatGivenE(td, inputFileName2, resultFileName2, e)
 
-	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2}, 100)
+	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -655,7 +650,6 @@ func TestEncryptedCountAggVertiJoin(t *testing.T) {
 }
 
 // / Encryped COUNT Test with DISTINCT and Vertical Join ///
-
 func TestEncryptedCountAggVertiJoinDistinct(t *testing.T) {
 	//the query we are trying to execute
 	//"select count(ssn) from (select distinct ssn from t)"
@@ -683,7 +677,7 @@ func TestEncryptedCountAggVertiJoinDistinct(t *testing.T) {
 	encryptedHf1, e := CSVToEncryptedDat(td, inputFileName1, resultFileName1, sql)
 	encryptedHf2 := CSVToEncryptedDatGivenE(td, inputFileName2, resultFileName2, e)
 
-	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2}, 100)
+	join, err := NewVerticalJoin([]Operator{encryptedHf1, encryptedHf2})
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
