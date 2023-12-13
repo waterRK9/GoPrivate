@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 )
 
 // func TestEncryptedAvgAgg(t *testing.T) {
@@ -944,7 +945,7 @@ func TestAvgAgg1000(t *testing.T) {
 	fmt.Println(tup)
 }
 
-func TestEncryptedCountAgg(t *testing.T) {
+/*func TestEncryptedCountAgg(t *testing.T) {
 	sql := "select count(ssn) from t"
 
 	var td = TupleDesc{Fields: []FieldType{
@@ -994,6 +995,127 @@ func TestEncryptedCountAgg(t *testing.T) {
 	if count != 298 {
 		t.Errorf("unexpected count")
 	}
+}*/
+
+func TestEncryptedCountAgg(t *testing.T) {
+	sql := "select count(ssn) from t"
+
+	var td = TupleDesc{Fields: []FieldType{
+		{Fname: "id", Ftype: StringType},
+		{Fname: "ssn", Ftype: StringType},
+		{Fname: "first_name", Ftype: StringType},
+		{Fname: "last_name", Ftype: StringType},
+		{Fname: "phone_number", Ftype: StringType},
+		{Fname: "gender", Ftype: StringType},
+		{Fname: "age", Ftype: StringType},
+		{Fname: "diagnosis_code", Ftype: StringType},
+	}}
+
+	resultFileName := "encryptedresults/1000_encrypted_mock_patient_data.csv"
+
+	// Uncomment Only Below for First Run to Generate Encrypted File
+	//inputFileName := "encryptedresults/1000_mock_patient_data.csv"
+	//encryptedHf, e := CSVToEncryptedDat(td, inputFileName, resultFileName, sql)
+
+	// Uncomment Only Below for Subsequent Runs to Avoid Generating Encrypted File
+	err, e := translateQuery(sql)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	bp := NewBufferPool(10)
+	encryptedHf := &HeapFile{
+		bufPool: bp,
+		desc:    &td,
+		file:    resultFileName,
+	}
+
+	start := time.Now()
+	aa := EncryptedCountAggState{}
+	expr := FieldExpr{FieldType{Fname: "ssn", TableQualifier: "t"}}
+	aa.Init("count", &expr, stringAggGetter, *e.PublicKeys["ssn"])
+	agg := NewEncryptedAggregator([]EncryptedAggState{&aa}, encryptedHf)
+
+	iter, err := agg.Iterator(nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("Iterator was nil")
+	}
+	tup, err := iter()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if tup == nil {
+		t.Fatalf("Expected non-null tuple")
+	}
+	time_now := time.Now()
+	elapsed := time_now.Sub(start)
+	fmt.Println(elapsed)
+
+	t.Fatalf("Expected non-null tuple")
+}
+
+func TestCountAgg(t *testing.T) {
+	var td = TupleDesc{Fields: []FieldType{
+		{Fname: "id", Ftype: StringType},
+		{Fname: "ssn", Ftype: StringType},
+		{Fname: "first_name", Ftype: StringType},
+		{Fname: "last_name", Ftype: StringType},
+		{Fname: "phone_number", Ftype: StringType},
+		{Fname: "gender", Ftype: StringType},
+		{Fname: "age", Ftype: IntType},
+		{Fname: "diagnosis_code", Ftype: StringType},
+	}}
+
+	resultFileName := "encryptedresults/1000_unencrypted_mock_patient_data.dat"
+	os.Remove(resultFileName)
+
+	bp := NewBufferPool(10)
+	hf, err := NewHeapFile(resultFileName, &td, bp)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Uncomment the below on first run to generate dat file
+	inputFileName := "encryptedresults/1000_mock_patient_data.csv"
+	f, err := os.Open(inputFileName)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	err = hf.LoadFromCSV(f, true, ",", false)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	////
+
+	start := time.Now()
+	aa := CountAggState{}
+	expr := FieldExpr{FieldType{Fname: "ssn", TableQualifier: "t"}}
+	aa.Init("count", &expr, stringAggGetter)
+	agg := NewAggregator([]AggState{&aa}, hf)
+
+	iter, err := agg.Iterator(nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if iter == nil {
+		t.Fatalf("Iterator was nil")
+	}
+	tup, err := iter()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	if tup == nil {
+		t.Fatalf("Expected non-null tuple")
+	}
+	time_now := time.Now()
+	elapsed := time_now.Sub(start)
+	fmt.Println(elapsed)
+
+	t.Fatalf("Expected non-null tuple")
+
 }
 
 func TestEncryptedAvgAggWhere(t *testing.T) {
